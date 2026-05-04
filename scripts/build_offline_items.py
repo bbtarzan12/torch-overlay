@@ -54,6 +54,11 @@ DEFAULT_START_PATHS = [
     "/ko/Vorax_Gameplay_Exclusive_Drops",
 ]
 
+AUTOCOMPLETE_SEED_DESC_PATTERNS = [
+    "추억의 부활 재료",
+    "추억 강화 재료",
+]
+
 CURATED_KO_FALLBACKS: dict[str, dict[str, str]] = {
     "7090": {"nameKo": "질주 이슬", "categoryKo": "지속", "slug": "Swiftness_Dew"},
     "7130": {"nameKo": "위축", "categoryKo": "주술", "slug": "Timid"},
@@ -267,6 +272,32 @@ def enrich_candidates_from_autocomplete(
     return matched
 
 
+def autocomplete_seed_candidates(entries: list[dict[str, str]]) -> list[Candidate]:
+    candidates: list[Candidate] = []
+
+    for entry in entries:
+        desc = entry.get("desc") or ""
+        if not any(pattern in desc for pattern in AUTOCOMPLETE_SEED_DESC_PATTERNS):
+            continue
+
+        slug = entry.get("value")
+        name_ko = entry.get("label")
+        if not slug or not name_ko:
+            continue
+
+        candidates.append(
+            Candidate(
+                slug=slug,
+                name_ko_hint=name_ko,
+                category_ko_hint=desc,
+                source_url=detail_url_from_slug(slug),
+                source_kind="tlidb-autocomplete-seed",
+            )
+        )
+
+    return candidates
+
+
 def apply_curated_fallbacks(candidates: list[Candidate]) -> int:
     applied = 0
     for candidate in candidates:
@@ -461,14 +492,20 @@ def build_snapshot(args: argparse.Namespace) -> dict[str, Any]:
     unresolved: list[dict[str, Any]] = []
 
     autocomplete_match_count = 0
+    autocomplete_seed_count = 0
     if not args.no_autocomplete:
         ko_autocomplete = load_autocomplete("ko", autocomplete_cache_dir, args.autocomplete_version, args.refresh, args.offline)
         cn_autocomplete = load_autocomplete("cn", autocomplete_cache_dir, args.autocomplete_version, args.refresh, args.offline)
         ko_by_value, _ = index_autocomplete(ko_autocomplete)
         _, cn_by_label = index_autocomplete(cn_autocomplete)
         autocomplete_match_count = enrich_candidates_from_autocomplete(candidates, ko_by_value, cn_by_label)
+        if args.seed_autocomplete_items:
+            autocomplete_candidates = autocomplete_seed_candidates(ko_autocomplete)
+            autocomplete_seed_count = len(autocomplete_candidates)
+            candidates.extend(autocomplete_candidates)
         source_counts["autocompleteKo"] = len(ko_autocomplete)
         source_counts["autocompleteCn"] = len(cn_autocomplete)
+        source_counts["autocompleteSeed"] = autocomplete_seed_count
 
     curated_fallback_count = apply_curated_fallbacks(candidates)
     source_counts["curatedFallbacks"] = curated_fallback_count
@@ -626,6 +663,11 @@ def main() -> int:
     parser.add_argument("--public-tracker-asar-url", default=PUBLIC_TRACKER_ASAR_URL)
     parser.add_argument("--autocomplete-version", default=TLIDB_ASSET_VERSION)
     parser.add_argument("--no-autocomplete", action="store_true", help="Do not use TLIDB autocomplete JSON.")
+    parser.add_argument(
+        "--seed-autocomplete-items",
+        action="store_true",
+        help="Also seed known item material categories from TLIDB autocomplete JSON.",
+    )
     parser.add_argument("--include-start-pages", action="store_true", help="Also discover item links from TLIDB list pages.")
     parser.add_argument("--start-path", action="append", default=DEFAULT_START_PATHS)
     parser.add_argument("--resolve-details", action="store_true", help="Fetch TLIDB detail pages for unresolved items.")

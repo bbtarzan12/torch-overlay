@@ -49,8 +49,9 @@ mod tests {
 
     #[test]
     fn embeds_generated_item_mapping() {
-        assert_eq!(item_count(), 1809);
+        assert_eq!(item_count(), 1957);
         assert_eq!(item_name_ko(100300).as_deref(), Some("최초의 불꽃 결정"));
+        assert_eq!(item_name_ko(391000).as_deref(), Some("거친 루나 가루"));
         assert_eq!(item_name_ko(112255).as_deref(), Some("상실의 포옹"));
     }
 }
