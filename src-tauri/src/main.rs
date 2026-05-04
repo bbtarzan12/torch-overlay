@@ -10,7 +10,7 @@ use std::{
     io::Write,
     path::PathBuf,
 };
-use tauri::Manager;
+use tauri::{LogicalSize, Manager, Window};
 
 #[derive(Debug, Deserialize)]
 struct ClickableRect {
@@ -42,6 +42,16 @@ fn set_clickable_rects(rects: Vec<ClickableRect>) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn set_overlay_window_size(window: Window, width: f64, height: f64) -> Result<(), String> {
+    let width = width.clamp(360.0, 2400.0);
+    let height = height.clamp(46.0, 900.0);
+
+    window
+        .set_size(LogicalSize::new(width, height))
+        .map_err(|error| error.to_string())
+}
+
 fn default_log_path() -> String {
     r"D:\SteamLibrary\steamapps\common\Torchlight Infinite\UE_game\TorchLight\Saved\Logs\UE_game.log"
     .to_string()
@@ -70,7 +80,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             parse_log_snapshot,
             set_position_locked,
-            set_clickable_rects
+            set_clickable_rects,
+            set_overlay_window_size
         ])
         .run(tauri::generate_context!());
 

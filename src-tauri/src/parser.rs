@@ -1,6 +1,6 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
-use serde::Serialize;
-use std::{fs, path::Path};
+use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, fs, path::Path, sync::OnceLock};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -55,8 +55,25 @@ struct ParseState {
     last_crystal_total: Option<i64>,
     pending_area_lv: Option<i64>,
     pending_level_uid: Option<String>,
+    pending_level_id: Option<String>,
     next_run_id: i64,
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OfflineMaps {
+    ambiguous_zones_by_internal_code: BTreeMap<String, BTreeMap<String, OfflineZone>>,
+    zones_by_internal_code: BTreeMap<String, OfflineZone>,
+    zones_by_level_id: BTreeMap<String, OfflineZone>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OfflineZone {
+    name_ko: String,
+}
+
+static OFFLINE_MAPS: OnceLock<Option<OfflineMaps>> = OnceLock::new();
 
 pub fn parse_log_file(path: impl AsRef<Path>) -> Result<TrackerSnapshot, ParseError> {
     let content = fs::read_to_string(path)?;
@@ -84,8 +101,9 @@ impl ParseState {
             self.pending_area_lv = Some(area_lv);
         }
 
-        if let Some(level_uid) = parse_level_uid(line) {
-            self.pending_level_uid = Some(level_uid);
+        if let Some(level_info) = parse_level_info(line) {
+            self.pending_level_uid = Some(level_info.level_uid);
+            self.pending_level_id = level_info.level_id;
         }
 
         if is_town_line(line) {
@@ -95,8 +113,11 @@ impl ParseState {
         if let Some(map_code) = parse_map_code(line) {
             if !is_town_map_code(&map_code) {
                 self.open_run(
-                    map_name_from_code(&map_code),
-                    difficulty_from_area_lv(self.pending_area_lv),
+                    map_name_from_code(&map_code, self.pending_level_id.as_deref()),
+                    difficulty_from_area_lv(
+                        self.pending_area_lv
+                            .or_else(|| area_lv_from_level_uid(self.pending_level_uid.as_deref())),
+                    ),
                     timestamp,
                 );
             }
@@ -242,10 +263,32 @@ fn parse_area_lv(line: &str) -> Option<i64> {
     parse_number_after(line, "AreaLv =").or_else(|| parse_number_after(line, "AreaLv =="))
 }
 
-fn parse_level_uid(line: &str) -> Option<String> {
-    parse_number_text_after(line, "LevelUid,")
-        .or_else(|| parse_number_text_after(line, "LevelUid ="))
-        .map(str::to_string)
+struct LevelInfo {
+    level_uid: String,
+    level_id: Option<String>,
+}
+
+fn parse_level_info(line: &str) -> Option<LevelInfo> {
+    if let Some(rest) = line.split_once("LevelUid, LevelType, LevelId =") {
+        let mut numbers = rest
+            .1
+            .split_whitespace()
+            .filter(|part| part.chars().all(|character| character.is_ascii_digit()));
+
+        let level_uid = numbers.next()?.to_string();
+        let _level_type = numbers.next();
+        let level_id = numbers.next().map(str::to_string);
+
+        return Some(LevelInfo {
+            level_uid,
+            level_id,
+        });
+    }
+
+    parse_number_text_after(line, "LevelUid =").map(|level_uid| LevelInfo {
+        level_uid: level_uid.to_string(),
+        level_id: None,
+    })
 }
 
 fn parse_map_code(line: &str) -> Option<String> {
@@ -267,11 +310,12 @@ fn parse_map_code(line: &str) -> Option<String> {
     let rest = line.split_once(marker)?.1.trim();
     let path = rest.split_whitespace().next().unwrap_or(rest);
     let last = path.rsplit('/').next().unwrap_or(path);
+    let map_code = clean_map_component(last);
 
-    if last.is_empty() {
+    if map_code.is_empty() {
         None
     } else {
-        Some(strip_numeric_suffix(last).to_string())
+        Some(map_code.to_string())
     }
 }
 
@@ -317,6 +361,19 @@ fn strip_numeric_suffix(value: &str) -> &str {
     value.trim_end_matches(|character: char| character.is_ascii_digit())
 }
 
+fn clean_map_component(value: &str) -> &str {
+    let trimmed = value
+        .trim()
+        .trim_matches(|character: char| matches!(character, '\'' | '"' | ',' | ')' | '('));
+
+    let without_object_path = trimmed
+        .rsplit_once('.')
+        .map_or(trimmed, |(_, object_name)| object_name);
+
+    without_object_path
+        .trim_matches(|character: char| matches!(character, '\'' | '"' | ',' | ')' | '('))
+}
+
 fn is_town_line(line: &str) -> bool {
     line.contains("LevelUid=111000")
         || line.contains("LevelUid = 111000")
@@ -346,20 +403,49 @@ fn difficulty_from_area_lv(area_lv: Option<i64>) -> String {
     .to_string()
 }
 
-fn map_name_from_code(map_code: &str) -> String {
-    match map_code {
-        "SD_ZhongXiGaoQiang" => "종식의 벽",
-        "DD_TanXiZhiQiang" => "슬픈 가락의 장벽",
-        "YL_BeiFengLinDi" => "비극의 숲",
-        "SQ_BianChuiZhiDi" => "황야의 들판",
-        "JH_MengZhongShengDi" => "잔잔한 빛의 강당",
-        "SD_DaHuangZhiYe" => "끝없는 광야",
-        "HM_LeiDianShanJi" => "번개 산마루",
-        "KD_YuanSuKuangDong" => "원소 광산",
-        "SD_ShengJieHuaYuan" => "성스러운 정원",
-        _ => map_code,
+fn area_lv_from_level_uid(level_uid: Option<&str>) -> Option<i64> {
+    let level_uid = level_uid?;
+
+    if level_uid.len() < 3 || !level_uid.starts_with('1') {
+        return None;
     }
-    .to_string()
+
+    level_uid.get(1..3)?.parse().ok()
+}
+
+fn map_name_from_code(map_code: &str, level_id: Option<&str>) -> String {
+    lookup_map_name(map_code, level_id)
+        .or_else(|| lookup_map_name(strip_numeric_suffix(map_code), level_id))
+        .unwrap_or_else(|| map_code.to_string())
+}
+
+fn lookup_map_name(map_code: &str, level_id: Option<&str>) -> Option<String> {
+    if map_code.is_empty() {
+        return None;
+    }
+
+    let maps = offline_maps()?;
+
+    if let Some(zone) = maps.zones_by_internal_code.get(map_code) {
+        return Some(zone.name_ko.clone());
+    }
+
+    if let Some(level_id) = level_id {
+        if let Some(zone) = maps.zones_by_level_id.get(level_id) {
+            return Some(zone.name_ko.clone());
+        }
+    }
+
+    maps.ambiguous_zones_by_internal_code
+        .get(map_code)
+        .and_then(|zones| zones.values().next())
+        .map(|zone| zone.name_ko.clone())
+}
+
+fn offline_maps() -> Option<&'static OfflineMaps> {
+    OFFLINE_MAPS
+        .get_or_init(|| serde_json::from_str(include_str!("../../data/offline/maps.ko.json")).ok())
+        .as_ref()
 }
 
 fn duration_seconds(start: Option<DateTime<Utc>>, end: Option<DateTime<Utc>>) -> i64 {
@@ -392,5 +478,30 @@ mod tests {
         assert_eq!(snapshot.current_run.map_name_ko, "종식의 벽");
         assert_eq!(snapshot.current_run.difficulty, "7-0");
         assert_eq!(snapshot.current_run.crystal, 4);
+    }
+
+    #[test]
+    fn uses_offline_korean_map_names_for_internal_codes() {
+        let snapshot = parse_log_snapshot(
+            r#"
+[2026.05.04-07.37.07:003][555]TLShipping: Display: [Game] LevelMgr@ LevelUid, LevelType, LevelId = 1061011 3 4611
+[2026.05.04-07.37.07:123][556]TLShipping: Display: [Game] Loading@ BeginLoadingScreen MapName = /Game/Art/Maps/01SD/SD_GeBuLinYingDi/SD_GeBuLinYingDi
+      "#,
+        );
+
+        assert_eq!(snapshot.current_run.map_name_ko, "바람의 협곡");
+        assert_eq!(snapshot.current_run.difficulty, "7-0");
+    }
+
+    #[test]
+    fn strips_numeric_suffix_after_exact_map_lookup_fails() {
+        let snapshot = parse_log_snapshot(
+            r#"
+[2026.05.04-06.00.00:000][  0]TLLua: MysteryAreaModel@UpdateMysteryMapDataList AreaId == 1000 AreaLv == 6
+[2026.05.04-06.00.01:000][  0]Loading@ BeginLoadingScreen MapName = /Game/Art/Maps/01SD/SD_ZhongXiGaoQiang200/SD_ZhongXiGaoQiang200
+      "#,
+        );
+
+        assert_eq!(snapshot.current_run.map_name_ko, "종식의 벽");
     }
 }

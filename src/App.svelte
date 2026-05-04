@@ -3,7 +3,13 @@
   import { buildChartSeries } from "./lib/chart";
   import { formatDuration, formatNumber, formatRate } from "./lib/format";
   import { sampleCurrentRun, sampleRuns } from "./lib/sample-data";
-  import { checkForUpdate, loadTrackerSnapshot, setClickableRects, setPositionLocked } from "./lib/tauri";
+  import {
+    checkForUpdate,
+    loadTrackerSnapshot,
+    setClickableRects,
+    setOverlayWindowSize,
+    setPositionLocked
+  } from "./lib/tauri";
   import type { ChartMode, CurrentRun, RunSummary, UpdateInfo } from "./lib/types";
 
   let currentRun: CurrentRun = sampleCurrentRun;
@@ -43,13 +49,13 @@
         runs = snapshot.runs.length > 0 ? snapshot.runs : sampleRuns;
       }
 
-      await syncClickableRects();
-      window.addEventListener("resize", syncClickableRects);
+      await syncOverlayLayout();
+      window.addEventListener("resize", syncOverlayLayout);
 
       updateTimer = window.setTimeout(async () => {
         updateInfo = { state: "checking" };
         updateInfo = await checkForUpdate();
-        await syncClickableRects();
+        await syncOverlayLayout();
       }, 10_000);
     })();
 
@@ -58,24 +64,24 @@
       if (updateTimer) {
         window.clearTimeout(updateTimer);
       }
-      window.removeEventListener("resize", syncClickableRects);
+      window.removeEventListener("resize", syncOverlayLayout);
     };
   });
 
   async function togglePositionLocked() {
     positionLocked = !positionLocked;
     await setPositionLocked(positionLocked);
-    await syncClickableRects();
+    await syncOverlayLayout();
   }
 
   async function toggleDetails() {
     detailsOpen = !detailsOpen;
-    await syncClickableRects();
+    await syncOverlayLayout();
   }
 
   async function setMode(mode: ChartMode) {
     chartMode = mode;
-    await syncClickableRects();
+    await syncOverlayLayout();
   }
 
   async function handleUpdateClick() {
@@ -104,6 +110,31 @@
     }
 
     await setClickableRects([...controls].map((element) => element.getBoundingClientRect()));
+  }
+
+  async function syncOverlayLayout() {
+    await syncClickableRects();
+    await resizeOverlayWindow();
+  }
+
+  async function resizeOverlayWindow() {
+    await tick();
+
+    const barBounds = barElement?.getBoundingClientRect();
+    if (!barBounds) {
+      return;
+    }
+
+    let right = barBounds.right;
+    let bottom = barBounds.bottom;
+
+    if (detailsOpen && detailsElement) {
+      const detailsBounds = detailsElement.getBoundingClientRect();
+      right = Math.max(right, detailsBounds.right);
+      bottom = Math.max(bottom, detailsBounds.bottom);
+    }
+
+    await setOverlayWindowSize(Math.ceil(right + 12), Math.ceil(bottom + 8));
   }
 </script>
 

@@ -37,6 +37,14 @@ export async function setClickableRects(rects: DOMRect[]): Promise<void> {
   });
 }
 
+export async function setOverlayWindowSize(width: number, height: number): Promise<void> {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await invoke("set_overlay_window_size", { width, height });
+}
+
 export async function checkForUpdate(): Promise<UpdateInfo> {
   if (!isTauriRuntime()) {
     return { state: "not_available", message: "브라우저 미리보기에서는 업데이트 확인을 생략합니다." };
@@ -61,4 +69,3 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
     };
   }
 }
-
