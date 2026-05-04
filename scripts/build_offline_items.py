@@ -55,6 +55,7 @@ DEFAULT_START_PATHS = [
 ]
 
 AUTOCOMPLETE_SEED_DESC_PATTERNS = [
+    "시즌 나침반",
     "추억의 부활 재료",
     "추억 강화 재료",
 ]

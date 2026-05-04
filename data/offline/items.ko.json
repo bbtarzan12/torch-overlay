@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-04T11:34:51.820086+00:00",
+  "generatedAt": "2026-05-04T11:42:21.854892+00:00",
   "itemsByConfigBaseId": {
     "10001": {
       "categoryKo": "\\n나침반",
@@ -1236,6 +1236,54 @@
       ],
       "urlKo": "https://tlidb.com/ko/Titanium-Alloy_Scalpel",
       "urlSource": "https://tlidb.com/cn/Titanium-Alloy_Scalpel"
+    },
+    "10300": {
+      "availability": "season",
+      "categoryKo": "시즌 나침반",
+      "icon": "https://cdn.tlidb.com/UIV2/S14Gameplay/UI/Textures/NoAtlas/UI_S14Compass_Gameplay_1_Icon.webp",
+      "iconAlt": "UIS14CompassGameplay1Icon",
+      "nameKo": "희미한 루나의 석",
+      "seasons": [
+        "SS12시즌"
+      ],
+      "slug": "Dim_Lunar_Stone",
+      "sources": [
+        "tlidb-autocomplete-seed"
+      ],
+      "urlKo": "https://tlidb.com/ko/Dim_Lunar_Stone",
+      "urlSource": "https://tlidb.com/ko/Dim_Lunar_Stone"
+    },
+    "10301": {
+      "availability": "season",
+      "categoryKo": "시즌 나침반",
+      "icon": "https://cdn.tlidb.com/UIV2/S14Gameplay/UI/Textures/NoAtlas/UI_S14Compass_Gameplay_2_Icon.webp",
+      "iconAlt": "UIS14CompassGameplay2Icon",
+      "nameKo": "빛이 흐르는 루나의 석",
+      "seasons": [
+        "SS12시즌"
+      ],
+      "slug": "Bright_Lunar_Stone",
+      "sources": [
+        "tlidb-autocomplete-seed"
+      ],
+      "urlKo": "https://tlidb.com/ko/Bright_Lunar_Stone",
+      "urlSource": "https://tlidb.com/ko/Bright_Lunar_Stone"
+    },
+    "10302": {
+      "availability": "season",
+      "categoryKo": "시즌 나침반",
+      "icon": "https://cdn.tlidb.com/UIV2/S14Gameplay/UI/Textures/NoAtlas/UI_S14Compass_Gameplay_3_Icon.webp",
+      "iconAlt": "UIS14CompassGameplay3Icon",
+      "nameKo": "찬란한 루나의 석",
+      "seasons": [
+        "SS12시즌"
+      ],
+      "slug": "Dazzling_Lunar_Stone",
+      "sources": [
+        "tlidb-autocomplete-seed"
+      ],
+      "urlKo": "https://tlidb.com/ko/Dazzling_Lunar_Stone",
+      "urlSource": "https://tlidb.com/ko/Dazzling_Lunar_Stone"
     },
     "10310": {
       "availability": "season",
@@ -29241,15 +29289,15 @@
   },
   "stats": {
     "autocompleteMatchCount": 1786,
-    "candidateCount": 2229,
-    "detailFetchCount": 139,
+    "candidateCount": 2232,
+    "detailFetchCount": 142,
     "idMismatchCount": 0,
-    "itemCount": 1957,
+    "itemCount": 1960,
     "missingKoreanNameCount": 0,
     "sourceCounts": {
       "autocompleteCn": 4450,
       "autocompleteKo": 4396,
-      "autocompleteSeed": 54,
+      "autocompleteSeed": 57,
       "curatedFallbacks": 25,
       "list:/ko/": 0,
       "list:/ko/Activation_Medium_Skill": 56,
