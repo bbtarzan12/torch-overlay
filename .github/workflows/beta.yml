@@ -1,0 +1,148 @@
+name: Beta
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_version:
+        description: "Base semver to build from. Empty means package.json version."
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  beta:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set beta version
+        shell: pwsh
+        run: |
+          $packagePath = "package.json"
+          $tauriPath = "src-tauri/tauri.conf.json"
+          $cargoPath = "src-tauri/Cargo.toml"
+          $baseVersion = "${{ inputs.base_version }}"
+
+          $package = Get-Content -Raw -LiteralPath $packagePath | ConvertFrom-Json
+          if ([string]::IsNullOrWhiteSpace($baseVersion)) {
+            $baseVersion = [string]$package.version
+          }
+
+          if ($baseVersion -notmatch "^(\d+)\.(\d+)\.(\d+)") {
+            throw "base_version must start with major.minor.patch: $baseVersion"
+          }
+
+          $major = [int]$Matches[1]
+          $minor = [int]$Matches[2]
+          $patch = [int]$Matches[3] + 1
+          $version = "$major.$minor.$patch-beta.$env:GITHUB_RUN_NUMBER"
+
+          $package.version = $version
+          $package | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $packagePath -Encoding UTF8
+
+          $tauri = Get-Content -Raw -LiteralPath $tauriPath | ConvertFrom-Json
+          $tauri.version = $version
+          $tauri | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $tauriPath -Encoding UTF8
+
+          $cargo = Get-Content -Raw -LiteralPath $cargoPath
+          $cargo = [regex]::Replace($cargo, '(?m)^version = ".*"$', "version = `"$version`"", 1)
+          Set-Content -LiteralPath $cargoPath -Value $cargo -Encoding UTF8
+
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Verify
+        run: npm run verify
+
+      - name: Build signed app
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri -- build --ci
+
+      - name: Prepare beta release assets
+        shell: pwsh
+        run: |
+          $bundleDir = "src-tauri/target/release/bundle/nsis"
+          $distDir = New-Item -ItemType Directory -Force -Path "artifacts/beta-release"
+          $installer = Get-ChildItem -LiteralPath $bundleDir -Filter "Torch Overlay_*_x64-setup.exe" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+          if (-not $installer) {
+            throw "Installer was not found under $bundleDir"
+          }
+
+          $signaturePath = "$($installer.FullName).sig"
+          if (-not (Test-Path -LiteralPath $signaturePath)) {
+            throw "Updater signature was not generated: $signaturePath"
+          }
+
+          Copy-Item -LiteralPath $installer.FullName -Destination $distDir.FullName -Force
+          Copy-Item -LiteralPath $signaturePath -Destination $distDir.FullName -Force
+
+          $encodedInstallerName = [uri]::EscapeDataString($installer.Name)
+          $installerUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/beta/$encodedInstallerName"
+          $signature = (Get-Content -LiteralPath $signaturePath -Raw).Trim()
+          $platform = [ordered]@{
+            signature = $signature
+            url = $installerUrl
+          }
+          $latest = [ordered]@{
+            version = $env:APP_VERSION
+            notes = "Torch Overlay beta build $env:APP_VERSION."
+            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = [ordered]@{
+              "windows-x86_64-nsis" = $platform
+              "windows-x86_64" = $platform
+            }
+          }
+
+          $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+          [System.IO.File]::WriteAllText(
+            (Join-Path $distDir.FullName "latest.json"),
+            ($latest | ConvertTo-Json -Depth 10),
+            $utf8NoBom
+          )
+
+      - name: Publish beta release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git tag -f beta $env:GITHUB_SHA
+          git push origin refs/tags/beta --force
+
+          $assets = Get-ChildItem -LiteralPath "artifacts/beta-release" -File | ForEach-Object { $_.FullName }
+          gh release view beta *> $null
+          $releaseExists = $LASTEXITCODE -eq 0
+
+          if ($releaseExists) {
+            gh release edit beta --title "Torch Overlay Beta" --notes "Beta build $env:APP_VERSION." --prerelease
+            gh release upload beta @assets --clobber
+          } else {
+            gh release create beta @assets --title "Torch Overlay Beta" --notes "Beta build $env:APP_VERSION." --prerelease --target $env:GITHUB_SHA
+          }

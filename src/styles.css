@@ -107,6 +107,10 @@ button {
   user-select: none;
 }
 
+.tracker-bar.has-update {
+  grid-template-columns: 20% 18% 25% 17% 10% 10%;
+}
+
 .segment {
   display: flex;
   align-items: center;
@@ -216,6 +220,22 @@ button {
   justify-content: center;
   gap: 8px;
   padding: 0 10px;
+}
+
+.update-status {
+  gap: 5px;
+  padding: 0 10px;
+  background: rgba(231, 190, 100, 0.06);
+}
+
+.update-status .value {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.update-status[data-state="error"] .value {
+  color: #ffb29f;
 }
 
 .opacity-control {

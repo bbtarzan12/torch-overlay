@@ -10,7 +10,7 @@
 1. 정적 검증: 타입, 포맷, Rust 테스트
 2. 웹 smoke: dist를 브라우저에서 실제 실행하고 DOM/스크린샷 확인
 3. Tauri dev: WebView 런타임에서 로그와 DevTools로 확인
-4. 로컬 릴리즈: 설치 파일과 updater signature까지 생성 확인
+4. Beta 배포: 실제 GitHub updater 경로로 설치본 확인
 ```
 
 `npm run build`만 통과해도 런타임 오류로 화면이 비어 있을 수 있다. 따라서 DOM이 실제로 렌더링됐는지 확인하는 smoke test를 필수로 둔다.
@@ -86,33 +86,26 @@ updater plugin permission 오류
 
 빈 창이 뜨면 DevTools Console에서 첫 오류를 확인한다. 앱 시작 중 fatal error가 발생하면 화면에 `Torch Overlay failed to start` 패널이 보여야 한다.
 
-## 4단계: 로컬 릴리즈 빌드
+## 4단계: Beta 배포 빌드
 
-```powershell
-npm run build:release:local
-```
-
-이 단계는 공개 배포판과 겹치지 않는 로컬 QA 전용 설치본을 만든다.
-
-로컬 빌드는 `TAURI_CONFIG` override를 사용해 다음 값을 임시 적용한다.
+자동 업데이트 검증은 로컬 전용 빌드가 아니라 GitHub Actions의 `Beta` workflow에서만 수행한다.
 
 ```text
-productName = Torch Overlay Local
-identifier = kr.tli.torch-overlay.local
-createUpdaterArtifacts = false
-updater endpoint = https://127.0.0.1:9/torch-overlay-local/latest.json
+endpoint = https://github.com/bbtarzan12/torch-overlay/releases/download/beta/latest.json
+release tag = beta
 ```
 
-따라서 공개 릴리즈판 `Torch Overlay`와 설치 식별자가 다르고, GitHub Release용 updater artifact도 만들지 않는다.
+이 경로는 앱 런타임에서 사용하는 유일한 자동 업데이트 경로다. `file://` updater, localhost updater 서버, 별도 update-test 앱은 사용하지 않는다.
 
 기대 산출물:
 
 ```text
-artifacts/local-build/Torch.Overlay.Local_{version}_{commit}-{timestamp}_x64-setup.exe
-artifacts/local-build/Torch.Overlay.Local_{version}_{commit}-{timestamp}.json
+GitHub Release beta/latest.json
+GitHub Release beta/Torch Overlay_{version}_x64-setup.exe
+GitHub Release beta/Torch Overlay_{version}_x64-setup.exe.sig
 ```
 
-`src-tauri/target/release/bundle/nsis` 아래에도 Tauri가 만든 원본 installer가 남을 수 있지만 QA에 사용할 파일은 항상 `artifacts/local-build` 아래의 `Torch.Overlay.Local_*` 파일이다.
+로컬에서는 `npm run verify`, `npm run smoke:web`, `npm run debug:tauri`까지만 확인한다. 설치본과 자동 업데이트는 beta workflow 산출물로 QA한다.
 
 ## 설치본 확인
 
@@ -122,9 +115,9 @@ artifacts/local-build/Torch.Overlay.Local_{version}_{commit}-{timestamp}.json
 1. npm run verify
 2. npm run smoke:web
 3. .\scripts\dev_tauri.ps1 -OpenDevTools
-4. npm run build:release:local
-5. 생성된 setup.exe 설치
-6. 앱 실행 후 bar 표시 확인
+4. GitHub Actions `Beta` workflow 실행
+5. `beta` release의 setup.exe 설치
+6. 다음 beta workflow 실행 후 앱 시작 시 자동 업데이트 확인
 ```
 
 설치본이 빈 창이면 다음 순서로 본다.
@@ -157,22 +150,19 @@ const app = mount(App, { target });
 ```text
 npm run verify
 npm run smoke:web
-npm run build:release:local
 ```
 
 UI를 수정한 경우에는 `artifacts/smoke/web-smoke.png`를 직접 열어 bar와 상세 패널이 의도대로 보이는지도 확인한다.
 
 ## 릴리즈 게이트
 
-GitHub Release는 자동으로 만들지 않는다. QA가 끝나기 전에는 tag를 만들거나 release workflow를 실행하지 않는다.
+GitHub Release는 `Beta` workflow를 수동 실행할 때만 갱신한다. QA 승인 없이 stable release를 만들지 않는다.
 
-릴리즈 승인 후 절차:
+Beta QA 절차:
 
 ```powershell
-git tag v0.1.1
-git push origin v0.1.1
-gh workflow run Release --repo bbtarzan12/torch-overlay -f tag=v0.1.1
+gh workflow run Beta --repo bbtarzan12/torch-overlay
 gh run watch --repo bbtarzan12/torch-overlay --exit-status
 ```
 
-이렇게 분리하면 main에 코드를 push해도 배포가 되지 않는다. 실제 배포는 QA 승인 후 `workflow_dispatch`로만 실행한다.
+이렇게 분리하면 main에 코드를 push해도 배포가 되지 않는다. 실제 설치본 갱신은 QA 목적의 `workflow_dispatch`로만 실행한다.

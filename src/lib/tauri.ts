@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type DownloadEvent } from "@tauri-apps/plugin-updater";
 import type { TrackerSnapshot, UpdateInfo } from "./types";
 
 export function isTauriRuntime(): boolean {
@@ -83,28 +84,67 @@ export async function setOverlayOpacity(opacity: number): Promise<void> {
   await invoke("set_overlay_opacity", { opacity });
 }
 
-export async function checkForUpdate(): Promise<UpdateInfo> {
-  if (!isTauriRuntime()) {
-    return { state: "not_available", message: "브라우저 미리보기에서는 업데이트 확인을 생략합니다." };
+export async function installStartupUpdate(
+  onStatus?: (info: UpdateInfo) => void
+): Promise<UpdateInfo> {
+  const isDevRuntime = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
+
+  if (!isTauriRuntime() || isDevRuntime) {
+    return { state: "not_available", message: "개발 실행에서는 업데이트 확인을 생략합니다." };
   }
 
+  const publish = (info: UpdateInfo) => {
+    onStatus?.(info);
+    return info;
+  };
+
   try {
+    publish({ state: "checking" });
     const update = await check();
 
     if (!update) {
-      return { state: "not_available" };
+      return publish({ state: "not_available" });
     }
 
-    await update.close();
-    return {
-      state: "available",
+    const baseInfo = {
       version: update.version,
       notes: update.body
     };
+    let downloadedBytes = 0;
+    let contentLength: number | undefined;
+
+    publish({ state: "available", ...baseInfo });
+
+    await update.downloadAndInstall((event: DownloadEvent) => {
+      if (event.event === "Started") {
+        downloadedBytes = 0;
+        contentLength = event.data.contentLength;
+        publish({ state: "downloading", progress: 0, ...baseInfo });
+      } else if (event.event === "Progress") {
+        downloadedBytes += event.data.chunkLength;
+        publish({
+          state: "downloading",
+          progress: contentLength ? Math.min(100, (downloadedBytes / contentLength) * 100) : undefined,
+          ...baseInfo
+        });
+      } else if (event.event === "Finished") {
+        publish({ state: "installing", progress: 100, ...baseInfo });
+      }
+    });
+
+    publish({
+      state: "ready_to_install",
+      message: "업데이트 설치 완료. 앱을 재시작합니다.",
+      progress: 100,
+      ...baseInfo
+    });
+    await relaunch();
+
+    return { state: "ready_to_install", progress: 100, ...baseInfo };
   } catch (error) {
-    return {
+    return publish({
       state: "error",
       message: error instanceof Error ? error.message : String(error)
-    };
+    });
   }
 }

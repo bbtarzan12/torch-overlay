@@ -4,7 +4,7 @@
   import { formatDuration, formatNumber, formatRate } from "./lib/format";
   import { sampleCurrentRun, sampleItems, sampleRuns } from "./lib/sample-data";
   import {
-    checkForUpdate,
+    installStartupUpdate,
     loadTrackerSnapshot,
     resetTrackerSession,
     setClickableRects,
@@ -20,7 +20,8 @@
     DetailTab,
     ItemFilter,
     ItemValuationRow,
-    RunSummary
+    RunSummary,
+    UpdateInfo
   } from "./lib/types";
 
   let currentRun: CurrentRun = sampleCurrentRun;
@@ -34,6 +35,7 @@
   let itemFilter: ItemFilter = "all";
   let manualPrices: Record<number, string> = {};
   let itemActionError = "";
+  let updateInfo: UpdateInfo = { state: "idle" };
 
   let shellElement: HTMLElement;
   let barElement: HTMLElement;
@@ -56,6 +58,8 @@
   $: unpricedItemRows = items.filter((item) => item.unpriced).length;
   $: ignoredItemCount = items.filter((item) => item.ignored).length;
   $: itemTotalValue = items.reduce((sum, item) => sum + item.valueInCrystal, 0);
+  $: showUpdateStatus = !["idle", "not_available"].includes(updateInfo.state);
+  $: updateStatusText = formatUpdateStatus(updateInfo);
   $: visibleItems = items.filter((item) => {
     if (itemFilter === "priced") {
       return !item.ignored && !item.unpriced;
@@ -89,7 +93,10 @@
 
       await syncOverlayLayout();
       window.addEventListener("resize", syncOverlayLayout);
-      void checkForUpdate();
+      void installStartupUpdate((info) => {
+        updateInfo = info;
+        void syncOverlayLayout();
+      });
     })();
 
     return () => {
@@ -294,6 +301,34 @@
       .padStart(2, "0")}`;
   }
 
+  function formatUpdateStatus(info: UpdateInfo): string {
+    if (info.state === "checking") {
+      return "확인 중";
+    }
+
+    if (info.state === "available") {
+      return `${info.version ?? "새 버전"} 준비`;
+    }
+
+    if (info.state === "downloading") {
+      return info.progress == null ? "다운로드 중" : `다운로드 ${Math.round(info.progress)}%`;
+    }
+
+    if (info.state === "installing") {
+      return "설치 중";
+    }
+
+    if (info.state === "ready_to_install") {
+      return "재시작 중";
+    }
+
+    if (info.state === "error") {
+      return "오류";
+    }
+
+    return "";
+  }
+
   async function resizeOverlayWindow() {
     await tick();
 
@@ -320,7 +355,11 @@
   class="tracker-shell"
   data-position-locked={positionLocked}
 >
-  <section bind:this={barElement} class="tracker-bar" aria-label="TLI 트래커 상단 바">
+  <section
+    bind:this={barElement}
+    class={`tracker-bar${showUpdateStatus ? " has-update" : ""}`}
+    aria-label="TLI 트래커 상단 바"
+  >
     <div class="segment status" data-tauri-drag-region={positionLocked ? undefined : ""}>
       <button
         class="pin-toggle"
@@ -374,6 +413,13 @@
         <span class="opacity-value">{opacity}%</span>
       </label>
     </div>
+
+    {#if showUpdateStatus}
+      <div class="segment update-status" data-state={updateInfo.state}>
+        <span class="label">업데이트</span>
+        <span class="value">{updateStatusText}</span>
+      </div>
+    {/if}
 
     <div class="segment actions">
       <button class="reset-button" type="button" onclick={resetSession}>초기화</button>

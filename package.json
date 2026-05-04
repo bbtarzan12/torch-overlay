@@ -13,15 +13,14 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "smoke:web": "node scripts/smoke-web.mjs",
     "verify": "npm run check && npm run build && cargo fmt --check --manifest-path src-tauri/Cargo.toml && cargo test --manifest-path src-tauri/Cargo.toml",
-    "debug:tauri": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev_tauri.ps1",
-    "build:release:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_release_local.ps1",
-    "update:test:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_update_test.ps1",
-    "update:test:server": "node scripts/update-test-server.mjs",
-    "update:test:install-old": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install_update_test_old.ps1"
+    "data:items": "python scripts/build_offline_items.py --use-public-tracker",
+    "data:items:sample": "python scripts/build_offline_items.py --use-public-tracker --out artifacts/items.sample.ko.json",
+    "debug:tauri": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev_tauri.ps1"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-opener": "^2.0.0",
+    "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.0.0",
     "svelte": "^5.0.0"
   },
