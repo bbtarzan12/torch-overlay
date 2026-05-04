@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod db;
+mod offline_items;
 #[cfg(test)]
 #[allow(dead_code)]
 mod parser;
@@ -115,6 +116,7 @@ fn main() {
 
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             write_diagnostic("setup starting");

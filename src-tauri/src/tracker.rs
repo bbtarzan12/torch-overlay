@@ -1,4 +1,4 @@
-use crate::db;
+use crate::{db, offline_items};
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -846,7 +846,10 @@ fn item_valuation_row(
         item_name_ko: if config_base_id == CRYSTAL_BASE_ID {
             Some("최초의 불꽃 결정".to_string())
         } else {
-            item_names.get(&config_base_id).cloned()
+            item_names
+                .get(&config_base_id)
+                .cloned()
+                .or_else(|| offline_items::item_name_ko(config_base_id))
         },
         quantity,
         ignored,
