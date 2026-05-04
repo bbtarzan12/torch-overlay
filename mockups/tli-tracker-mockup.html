@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TLI Tracker Top Bar</title>
+  <style>
+    :root {
+      --app-opacity: 0.92;
+      --bar-bg: #090908;
+      --line: rgba(222, 178, 92, 0.24);
+      --text: #f3eadb;
+      --muted: #aa9e8b;
+      --gold: #e7be64;
+      --green: #74d87a;
+      --shadow: rgba(0, 0, 0, 0.45);
+      --bar-width-target: 1380px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(231, 190, 100, 0.11), transparent 28%),
+        radial-gradient(circle at 72% 8%, rgba(116, 216, 122, 0.055), transparent 24%),
+        linear-gradient(135deg, #1b1a17 0%, #11110f 52%, #22201a 100%);
+    }
+
+    body.preview {
+      min-height: 100vh;
+    }
+
+    #layout-metrics {
+      display: none;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .tracker-shell {
+      position: fixed;
+      top: 8px;
+      left: 12px;
+      display: inline-grid;
+      grid-template-columns: 1fr;
+      width: min(var(--bar-width-target), calc(100vw - 24px));
+      max-width: calc(100vw - 24px);
+      overflow: visible;
+      z-index: 1;
+      opacity: var(--app-opacity);
+      pointer-events: none;
+    }
+
+    .tracker-shell[data-position-locked="false"] {
+      pointer-events: auto;
+    }
+
+    .tracker-shell[data-position-locked="true"] .pin-toggle,
+    .tracker-shell[data-position-locked="true"] .opacity-control,
+    .tracker-shell[data-position-locked="true"] .opacity-slider,
+    .tracker-shell[data-position-locked="true"] .reset-button,
+    .tracker-shell[data-position-locked="true"] .detail-toggle,
+    .tracker-shell[data-position-locked="true"] .chart-switch button {
+      pointer-events: auto;
+    }
+
+    .tracker-bar {
+      display: grid;
+      grid-template-columns: 22% 20% 29% 19% 10%;
+      align-items: center;
+      height: 30px;
+      width: 100%;
+      max-width: 100%;
+      overflow: visible;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--text);
+      background: var(--bar-bg);
+      box-shadow: 0 12px 32px var(--shadow);
+      backdrop-filter: blur(10px);
+      user-select: none;
+    }
+
+    .segment {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 100%;
+      min-width: 0;
+      padding: 0 14px;
+      border-right: 1px solid rgba(222, 178, 92, 0.14);
+      white-space: nowrap;
+      justify-content: center;
+    }
+
+    .segment:last-child {
+      border-right: 0;
+    }
+
+    .status {
+      justify-content: flex-start;
+    }
+
+    .pin-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 20px;
+      flex: 0 0 auto;
+      padding: 0;
+      border: 1px solid rgba(222, 178, 92, 0.18);
+      border-radius: 5px;
+      color: var(--gold);
+      background: rgba(231, 190, 100, 0.13);
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .pin-toggle svg {
+      width: 13px;
+      height: 13px;
+      fill: currentColor;
+      transition: transform 140ms ease, opacity 140ms ease;
+    }
+
+    .pin-toggle[aria-pressed="false"] {
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .pin-toggle[aria-pressed="false"] svg {
+      opacity: 0.72;
+      transform: rotate(-32deg) translateY(1px);
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .value {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      overflow: visible;
+      text-overflow: clip;
+      white-space: nowrap;
+    }
+
+    .current-run .value,
+    .reset-stats .highlight {
+      color: var(--gold);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .reset-stats .value {
+      color: var(--muted);
+    }
+
+    .reset-stats .value,
+    .current-run .value {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .metric {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .metric.muted {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .separator {
+      color: rgba(222, 178, 92, 0.36);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .actions {
+      padding: 0;
+      gap: 0;
+      justify-content: stretch;
+    }
+
+    .overlay-controls {
+      justify-content: center;
+      gap: 8px;
+      padding: 0 10px;
+    }
+
+    .opacity-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .opacity-control input {
+      width: 96px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+
+    .opacity-value {
+      width: 28px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tracker-shell[data-position-locked="false"] .status,
+    .tracker-shell[data-position-locked="false"] .current-run,
+    .tracker-shell[data-position-locked="false"] .reset-stats {
+      cursor: move;
+    }
+
+    .reset-button,
+    .detail-toggle {
+      height: 100%;
+      flex: 1 1 0;
+      padding: 0 11px;
+      border: 0;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .reset-button {
+      color: #ffb29f;
+      background: rgba(232, 106, 82, 0.08);
+    }
+
+    .reset-button:hover {
+      color: #ffd7ce;
+      background: rgba(232, 106, 82, 0.18);
+    }
+
+    .detail-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--text);
+      background: rgba(231, 190, 100, 0.08);
+      border-left: 1px solid rgba(222, 178, 92, 0.14);
+    }
+
+    .detail-toggle:hover,
+    .detail-toggle[aria-expanded="true"] {
+      color: #fff5df;
+      background: rgba(231, 190, 100, 0.18);
+    }
+
+    .chevron {
+      display: inline-block;
+      transition: transform 140ms ease;
+    }
+
+    .detail-toggle[aria-expanded="true"] .chevron {
+      transform: rotate(180deg);
+    }
+
+    .details-panel {
+      position: absolute;
+      top: 35px;
+      left: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      width: var(--bar-width, 100%);
+      max-width: var(--bar-width, 100%);
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: var(--text);
+      background: #090908;
+      box-shadow: 0 12px 32px var(--shadow);
+      backdrop-filter: blur(12px);
+      white-space: nowrap;
+    }
+
+    .details-panel[hidden] {
+      display: none;
+    }
+
+    .panel-title,
+    .run-table th {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .chart-panel,
+    .runs-panel {
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid rgba(222, 178, 92, 0.12);
+      border-radius: 8px;
+      background: #0d0c0a;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 15px;
+      margin-bottom: 8px;
+    }
+
+    .panel-title {
+      font-weight: 700;
+    }
+
+    .chart-switch {
+      display: inline-flex;
+      overflow: hidden;
+      border: 1px solid rgba(222, 178, 92, 0.16);
+      border-radius: 6px;
+      background: rgba(13, 12, 10, 0.84);
+    }
+
+    .chart-switch button {
+      height: 22px;
+      padding: 0 10px;
+      border: 0;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .chart-switch button + button {
+      border-left: 1px solid rgba(222, 178, 92, 0.12);
+    }
+
+    .chart-switch button[aria-pressed="true"] {
+      color: var(--text);
+      background: rgba(231, 190, 100, 0.16);
+    }
+
+    .chart {
+      width: 100%;
+      height: 126px;
+      display: block;
+    }
+
+    .chart-grid {
+      stroke: rgba(222, 178, 92, 0.12);
+      stroke-width: 1;
+    }
+
+    .chart-line {
+      fill: none;
+      stroke: var(--gold);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 5px rgba(231, 190, 100, 0.45));
+    }
+
+    .chart-area {
+      fill: rgba(231, 190, 100, 0.12);
+    }
+
+    .chart-cumulative .chart-line {
+      stroke: var(--green);
+      filter: drop-shadow(0 0 5px rgba(116, 216, 122, 0.32));
+    }
+
+    .chart-cumulative .chart-area {
+      fill: rgba(116, 216, 122, 0.10);
+    }
+
+    .chart-cumulative .chart-point {
+      stroke: var(--green);
+    }
+
+    .chart[data-chart-active="rate"] .chart-cumulative,
+    .chart[data-chart-active="cumulative"] .chart-rate {
+      display: none;
+    }
+
+    .chart-point {
+      fill: #11100d;
+      stroke: var(--gold);
+      stroke-width: 2;
+    }
+
+    .chart-label {
+      fill: var(--muted);
+      font-size: 9px;
+    }
+
+    .run-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .runs-scroll {
+      max-height: 300px;
+      overflow-y: auto;
+      padding-right: 4px;
+      scrollbar-color: rgba(231, 190, 100, 0.45) rgba(255, 255, 255, 0.04);
+      scrollbar-width: thin;
+    }
+
+    .runs-scroll::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .runs-scroll::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 999px;
+    }
+
+    .runs-scroll::-webkit-scrollbar-thumb {
+      background: rgba(231, 190, 100, 0.45);
+      border-radius: 999px;
+    }
+
+    .run-table col.map-col {
+      width: 34%;
+    }
+
+    .run-table col.difficulty-col {
+      width: 24%;
+    }
+
+    .run-table col.time-col,
+    .run-table col.crystal-col,
+    .run-table col.rate-col {
+      width: 14%;
+    }
+
+    .run-table th,
+    .run-table td {
+      height: 23px;
+      padding: 0 7px;
+      border-bottom: 1px solid rgba(222, 178, 92, 0.08);
+      overflow: visible;
+      text-overflow: clip;
+      white-space: nowrap;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .run-table th:first-child,
+    .run-table td:first-child {
+      padding-left: 0;
+    }
+
+    .run-table th:last-child,
+    .run-table td:last-child {
+      padding-right: 0;
+    }
+
+    .run-table th:first-child,
+    .run-table td:first-child,
+    .run-table th:nth-child(2),
+    .run-table td:nth-child(2) {
+      text-align: left;
+    }
+
+    .run-table td {
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .run-table td:first-child {
+      color: #d8cfbd;
+      font-weight: 700;
+    }
+
+    .run-table thead th {
+      height: 23px;
+      border-top: 0;
+      border-bottom: 1px solid rgba(222, 178, 92, 0.10);
+      background: transparent;
+      color: #a89c87;
+      font-weight: 700;
+    }
+
+    .run-table tfoot td {
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+      height: 23px;
+      border-top: 1px solid rgba(222, 178, 92, 0.10);
+      border-bottom: 0;
+      background: #0d0c0a;
+      color: #a89c87 !important;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .run-table tfoot td:first-child {
+      color: #a89c87 !important;
+      text-align: left;
+    }
+
+    .run-table tfoot td:nth-child(2) {
+      color: #a89c87 !important;
+      text-align: left;
+    }
+
+    .run-table tfoot td:nth-child(3),
+    .run-table tfoot td:nth-child(4),
+    .run-table tfoot td:nth-child(5) {
+      color: #a89c87 !important;
+    }
+
+    .run-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .run-table .muted {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .run-table tbody tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.026);
+    }
+
+    .run-table .gold {
+      color: var(--gold);
+    }
+  </style>
+</head>
+<body>
+  <main class="tracker-shell" data-position-locked="true">
+    <section class="tracker-bar" aria-label="TLI 트래커 상단 바">
+      <div class="segment status">
+        <button class="pin-toggle" type="button" aria-pressed="true" title="위치 고정" aria-label="위치 고정">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M10.7 1.2 14.8 5.3 13.5 6.6 12.4 5.5 9.3 8.6l.4 2.7-.9.9-2.9-2.9-3.7 3.7-1-1 3.7-3.7-2.9-2.9.9-.9 2.7.4 3.1-3.1-1.1-1.1 1.3-1.3Z"></path>
+          </svg>
+        </button>
+        <span class="value">종식의 벽 7-0 18:34</span>
+      </div>
+      <div class="segment current-run">
+        <span class="label">런</span>
+        <span class="value">
+          <span class="highlight">+14 결정</span>
+          <span class="separator">·</span>
+          <span class="metric">45.2/h</span>
+        </span>
+      </div>
+      <div class="segment reset-stats">
+        <span class="label">누적</span>
+        <span class="value">
+          <span class="highlight">136 결정</span>
+          <span class="separator">·</span>
+          <span class="metric">평균 50.8/h</span>
+          <span class="separator">·</span>
+          <span class="metric muted">11.3/런</span>
+        </span>
+      </div>
+      <div class="segment overlay-controls" aria-label="오버레이 제어">
+        <label class="opacity-control">
+          <span class="label">투명</span>
+          <input class="opacity-slider" type="range" min="5" max="100" value="92" aria-label="투명도">
+          <span class="opacity-value">92%</span>
+        </label>
+      </div>
+      <div class="segment actions">
+        <button class="reset-button" type="button">초기화</button>
+        <button class="detail-toggle" type="button" aria-expanded="false" aria-controls="tracker-details">
+          상세 <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="details-panel" id="tracker-details" aria-label="TLI 트래커 상세 정보" hidden>
+      <div class="analytics-grid">
+        <section class="chart-panel" aria-label="런 그래프">
+          <div class="panel-head">
+            <span class="panel-title" id="chart-title">시간 당 결정</span>
+            <span class="chart-switch" aria-label="그래프 종류">
+              <button type="button" data-chart-mode="rate" aria-pressed="true">런별</button>
+              <button type="button" data-chart-mode="cumulative" aria-pressed="false">누적</button>
+            </span>
+          </div>
+          <svg class="chart" data-chart-active="rate" viewBox="0 0 1200 126" role="img" aria-label="런 그래프">
+            <path class="chart-grid" d="M54 20H1170M54 48H1170M54 76H1170M54 106H1170"></path>
+            <g class="chart-mode chart-rate" data-chart-panel="rate">
+              <path class="chart-area" d="M54 26 L156 50 L258 58 L360 88 L462 92 L564 72 L666 91 L768 78 L870 62 L972 32 L1074 79 L1170 80 L1170 106 L54 106 Z"></path>
+              <path class="chart-line" d="M54 26 L156 50 L258 58 L360 88 L462 92 L564 72 L666 91 L768 78 L870 62 L972 32 L1074 79 L1170 80"></path>
+              <g>
+                <circle class="chart-point" cx="54" cy="26" r="3"></circle>
+                <circle class="chart-point" cx="156" cy="50" r="3"></circle>
+                <circle class="chart-point" cx="258" cy="58" r="3"></circle>
+                <circle class="chart-point" cx="360" cy="88" r="3"></circle>
+                <circle class="chart-point" cx="462" cy="92" r="3"></circle>
+                <circle class="chart-point" cx="564" cy="72" r="3"></circle>
+                <circle class="chart-point" cx="666" cy="91" r="3"></circle>
+                <circle class="chart-point" cx="768" cy="78" r="3"></circle>
+                <circle class="chart-point" cx="870" cy="62" r="3"></circle>
+                <circle class="chart-point" cx="972" cy="32" r="3"></circle>
+                <circle class="chart-point" cx="1074" cy="79" r="3"></circle>
+                <circle class="chart-point" cx="1170" cy="80" r="3"></circle>
+              </g>
+              <text class="chart-label" x="8" y="23">90/h</text>
+              <text class="chart-label" x="8" y="79">40/h</text>
+            </g>
+            <g class="chart-mode chart-cumulative" data-chart-panel="cumulative">
+              <path class="chart-area" d="M54 95 L156 86 L258 79 L360 73 L462 68 L564 59 L666 56 L768 48 L870 40 L972 29 L1074 26 L1170 20 L1170 106 L54 106 Z"></path>
+              <path class="chart-line" d="M54 95 L156 86 L258 79 L360 73 L462 68 L564 59 L666 56 L768 48 L870 40 L972 29 L1074 26 L1170 20"></path>
+              <g>
+                <circle class="chart-point" cx="54" cy="95" r="3"></circle>
+                <circle class="chart-point" cx="156" cy="86" r="3"></circle>
+                <circle class="chart-point" cx="258" cy="79" r="3"></circle>
+                <circle class="chart-point" cx="360" cy="73" r="3"></circle>
+                <circle class="chart-point" cx="462" cy="68" r="3"></circle>
+                <circle class="chart-point" cx="564" cy="59" r="3"></circle>
+                <circle class="chart-point" cx="666" cy="56" r="3"></circle>
+                <circle class="chart-point" cx="768" cy="48" r="3"></circle>
+                <circle class="chart-point" cx="870" cy="40" r="3"></circle>
+                <circle class="chart-point" cx="972" cy="29" r="3"></circle>
+                <circle class="chart-point" cx="1074" cy="26" r="3"></circle>
+                <circle class="chart-point" cx="1170" cy="20" r="3"></circle>
+              </g>
+              <text class="chart-label" x="8" y="23">136</text>
+              <text class="chart-label" x="8" y="107">0</text>
+            </g>
+            <text class="chart-label" x="54" y="122">1</text>
+            <text class="chart-label" x="1150" y="122">12</text>
+          </svg>
+        </section>
+
+        <section class="runs-panel" aria-label="런 기록">
+          <div class="runs-scroll">
+          <table class="run-table">
+            <colgroup>
+              <col class="map-col">
+              <col class="difficulty-col">
+              <col class="time-col">
+              <col class="crystal-col">
+              <col class="rate-col">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>맵</th>
+                <th>난이도</th>
+                <th>시간</th>
+                <th>결정</th>
+                <th>결정/h</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>끝없는 광야</td>
+                <td class="muted">딥 스페이스</td>
+                <td>11:42</td>
+                <td class="gold">18</td>
+                <td class="gold">92.3</td>
+              </tr>
+              <tr>
+                <td>잔잔한 빛의 강당</td>
+                <td class="muted">아득한 8단계</td>
+                <td>13:08</td>
+                <td class="gold">15</td>
+                <td class="gold">68.5</td>
+              </tr>
+              <tr>
+                <td>황야의 들판</td>
+                <td class="muted">8-0</td>
+                <td>10:51</td>
+                <td class="gold">11</td>
+                <td class="gold">60.8</td>
+              </tr>
+              <tr>
+                <td>슬픈 가락의 장벽</td>
+                <td class="muted">7-2</td>
+                <td>16:20</td>
+                <td class="gold">9</td>
+                <td class="gold">33.1</td>
+              </tr>
+              <tr>
+                <td>번개 산마루</td>
+                <td class="muted">7-1</td>
+                <td>15:44</td>
+                <td class="gold">8</td>
+                <td class="gold">30.5</td>
+              </tr>
+              <tr>
+                <td>종식의 벽</td>
+                <td class="muted">7-0</td>
+                <td>18:10</td>
+                <td class="gold">14</td>
+                <td class="gold">46.2</td>
+              </tr>
+              <tr>
+                <td>비극의 숲</td>
+                <td class="muted">5단계</td>
+                <td>09:38</td>
+                <td class="gold">5</td>
+                <td class="gold">31.1</td>
+              </tr>
+              <tr>
+                <td>왕의 허브</td>
+                <td class="muted">7-0</td>
+                <td>17:22</td>
+                <td class="gold">12</td>
+                <td class="gold">41.5</td>
+              </tr>
+              <tr>
+                <td>성스러운 정원</td>
+                <td class="muted">7-1</td>
+                <td>14:58</td>
+                <td class="gold">13</td>
+                <td class="gold">52.1</td>
+              </tr>
+              <tr>
+                <td>코어 광산</td>
+                <td class="muted">딥 스페이스</td>
+                <td>12:06</td>
+                <td class="gold">17</td>
+                <td class="gold">84.3</td>
+              </tr>
+              <tr>
+                <td>끝없는 광야</td>
+                <td class="muted">7-0</td>
+                <td>08:44</td>
+                <td class="gold">6</td>
+                <td class="gold">41.2</td>
+              </tr>
+              <tr>
+                <td>축원의 성전</td>
+                <td class="muted">6단계</td>
+                <td>11:48</td>
+                <td class="gold">8</td>
+                <td class="gold">40.7</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>평균</td>
+                <td></td>
+                <td>13:23</td>
+                <td>11.3</td>
+                <td>50.8</td>
+              </tr>
+            </tfoot>
+          </table>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const shell = document.querySelector(".tracker-shell");
+    const bar = document.querySelector(".tracker-bar");
+    const toggle = document.querySelector(".detail-toggle");
+    const details = document.querySelector("#tracker-details");
+    const chartTitle = document.querySelector("#chart-title");
+    const chart = document.querySelector(".chart");
+    const chartButtons = [...document.querySelectorAll("[data-chart-mode]")];
+    const opacitySlider = document.querySelector(".opacity-slider");
+    const opacityValue = document.querySelector(".opacity-value");
+    const lockToggle = document.querySelector(".pin-toggle");
+    const draggableSegments = [...document.querySelectorAll(".status, .current-run, .reset-stats")];
+    const params = new URLSearchParams(window.location.search);
+
+    function syncPanelWidth() {
+      shell.style.setProperty("--bar-width", `${bar.offsetWidth}px`);
+    }
+
+    syncPanelWidth();
+    window.addEventListener("resize", syncPanelWidth);
+
+    function setChartMode(mode) {
+      chart.dataset.chartActive = mode;
+      chartButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.chartMode === mode));
+      });
+
+      chartTitle.textContent = mode === "cumulative" ? "누적 결정" : "시간 당 결정";
+    }
+
+    function setOverlayOpacity(value) {
+      const requested = Number(value);
+      const percent = Number.isFinite(requested) ? Math.min(100, Math.max(5, requested)) : 92;
+      const alpha = percent / 100;
+
+      document.documentElement.style.setProperty("--app-opacity", alpha.toFixed(2));
+      opacityValue.textContent = `${percent}%`;
+    }
+
+    function setPositionLocked(locked) {
+      shell.dataset.positionLocked = String(locked);
+      lockToggle.setAttribute("aria-pressed", String(locked));
+      lockToggle.title = locked ? "위치 고정" : "위치 이동 가능";
+      lockToggle.setAttribute("aria-label", lockToggle.title);
+      draggableSegments.forEach((segment) => {
+        if (locked) {
+          segment.removeAttribute("data-tauri-drag-region");
+        } else {
+          segment.setAttribute("data-tauri-drag-region", "");
+        }
+      });
+    }
+
+    chartButtons.forEach((button) => {
+      button.addEventListener("click", () => setChartMode(button.dataset.chartMode));
+    });
+
+    opacitySlider.addEventListener("input", (event) => setOverlayOpacity(event.currentTarget.value));
+    lockToggle.addEventListener("click", () => {
+      setPositionLocked(lockToggle.getAttribute("aria-pressed") !== "true");
+    });
+
+    if (params.has("opacity")) {
+      opacitySlider.value = params.get("opacity");
+    }
+
+    setOverlayOpacity(opacitySlider.value);
+    setPositionLocked(true);
+
+    if (params.get("chart") === "cumulative") {
+      setChartMode("cumulative");
+    }
+
+    if (params.has("preview")) {
+      document.documentElement.classList.add("preview-root");
+      document.body.classList.add("preview");
+    }
+
+    if (params.has("details") || window.location.hash === "#details") {
+      syncPanelWidth();
+      toggle.setAttribute("aria-expanded", "true");
+      details.hidden = false;
+    }
+
+    if (params.has("measure")) {
+      const readBox = (selector) => {
+        const element = document.querySelector(selector);
+        const rect = element.getBoundingClientRect();
+        return {
+          selector,
+          x: Math.round(rect.x),
+          y: Math.round(rect.y),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height)
+        };
+      };
+
+      const metrics = [
+        readBox(".tracker-bar"),
+        readBox(".details-panel"),
+        readBox(".status"),
+        readBox(".current-run"),
+        readBox(".reset-stats"),
+        readBox(".actions")
+      ];
+
+      const styles = [...document.querySelectorAll(".run-table tfoot td")].map((element) => {
+        const style = window.getComputedStyle(element);
+        return {
+          text: element.textContent.trim(),
+          color: style.color,
+          backgroundColor: style.backgroundColor,
+          fontWeight: style.fontWeight
+        };
+      });
+
+      const output = document.createElement("pre");
+      output.id = "layout-metrics";
+      output.textContent = JSON.stringify({ metrics, footerStyles: styles }, null, 2);
+      document.body.appendChild(output);
+    }
+
+    toggle.addEventListener("click", () => {
+      const expanded = toggle.getAttribute("aria-expanded") === "true";
+      syncPanelWidth();
+      toggle.setAttribute("aria-expanded", String(!expanded));
+      details.hidden = expanded;
+    });
+  </script>
+</body>
+</html>

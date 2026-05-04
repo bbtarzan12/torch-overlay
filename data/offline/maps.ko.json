@@ -1,0 +1,1279 @@
+{
+  "ambiguousZonesByInternalCode": {
+    "GeBuLinCunLuo": {
+      "2": {
+        "areaSlug": "Demiman_Village",
+        "displayEn": "Glacial Abyss - Demiman Village",
+        "nameKo": "야인 마을",
+        "regionKo": "얼어붙은 심연",
+        "regionSlug": "Glacial_Abyss"
+      }
+    },
+    "KD_YuanSuKuangDong000": {
+      "12": {
+        "areaSlug": "Elemental_Mine",
+        "displayEn": "Blistering Lava Sea - Elemental Mine",
+        "nameKo": "원소 광산",
+        "regionKo": "끓어오르는 화염의 바다",
+        "regionSlug": "Blistering_Lava_Sea"
+      },
+      "55": {
+        "areaSlug": "Elemental_Mine",
+        "displayEn": "Voidlands - Elemental Mine",
+        "nameKo": "원소 광산",
+        "regionKo": "암흑의 땅",
+        "regionSlug": "Voidlands"
+      }
+    },
+    "YL_BeiFengLinDi": {
+      "54": {
+        "areaSlug": "Grimwind_Woods",
+        "displayEn": "Voidlands - Grimwind Woods",
+        "nameKo": "비극의 숲",
+        "regionKo": "암흑의 땅",
+        "regionSlug": "Voidlands"
+      },
+      "6": {
+        "areaSlug": "Grimwind_Woods",
+        "displayEn": "Glacial Abyss - Grimwind Woods",
+        "nameKo": "비극의 숲",
+        "regionKo": "얼어붙은 심연",
+        "regionSlug": "Glacial_Abyss"
+      }
+    }
+  },
+  "generatedAt": "2026-05-04T03:30:23.643672+00:00",
+  "language": "ko",
+  "regions": [
+    {
+      "areas": [
+        {
+          "nameKo": "원소 광산",
+          "slug": "Elemental_Mine"
+        },
+        {
+          "nameKo": "황야의 들판",
+          "slug": "Savage_Grasslands"
+        },
+        {
+          "nameKo": "산의 마음",
+          "slug": "Heart_of_the_Mountains"
+        },
+        {
+          "nameKo": "용의 잠든 협곡",
+          "slug": "Dragonrest_Canyon"
+        },
+        {
+          "nameKo": "제련소",
+          "slug": "Smelting_Plant"
+        },
+        {
+          "nameKo": "뒤틀린 골짜기",
+          "slug": "Twisted_Valley"
+        },
+        {
+          "nameKo": "지옥계곡",
+          "slug": "Hellfire_Chasm"
+        },
+        {
+          "nameKo": "참회의 성전",
+          "slug": "Confession_Chapel"
+        },
+        {
+          "nameKo": "일몰의 천장",
+          "slug": "Sunset_Dome_Bottom"
+        },
+        {
+          "nameKo": "암흑의 왕정",
+          "slug": "Court_of_Darkness"
+        },
+        {
+          "nameKo": "잔잔한 빛의 강당",
+          "slug": "Shimmering_Hall"
+        },
+        {
+          "nameKo": "헌신의 길",
+          "slug": "Path_of_Sacrifice"
+        },
+        {
+          "nameKo": "고해의 방",
+          "slug": "Where_Lies_Confession"
+        },
+        {
+          "nameKo": "지옥계곡: 차원1",
+          "slug": "Hellfire_Chasm:_Plane_1"
+        },
+        {
+          "nameKo": "지옥계곡: 차원2",
+          "slug": "Hellfire_Chasm:_Plane_2"
+        },
+        {
+          "nameKo": "지옥계곡: 차원3",
+          "slug": "Hellfire_Chasm:_Plane_3"
+        },
+        {
+          "nameKo": "지옥계곡: 차원4",
+          "slug": "Hellfire_Chasm:_Plane_4"
+        },
+        {
+          "nameKo": "지옥계곡: 차원5",
+          "slug": "Hellfire_Chasm:_Plane_5"
+        },
+        {
+          "nameKo": "지옥계곡: 차원6",
+          "slug": "Hellfire_Chasm:_Plane_6"
+        },
+        {
+          "nameKo": "정상 대결 11층",
+          "slug": "Supreme_Showdown_Floor_11"
+        },
+        {
+          "nameKo": "정상 대결 17층",
+          "slug": "Supreme_Showdown_Floor_17"
+        },
+        {
+          "nameKo": "정상 대결 10층",
+          "slug": "Supreme_Showdown_Floor_10"
+        },
+        {
+          "nameKo": "정상 대결 13층",
+          "slug": "Supreme_Showdown_Floor_13"
+        },
+        {
+          "nameKo": "정상 대결 18층",
+          "slug": "Supreme_Showdown_Floor_18"
+        },
+        {
+          "nameKo": "정상 대결 14층",
+          "slug": "Supreme_Showdown_Floor_14"
+        },
+        {
+          "nameKo": "정상 대결 19층",
+          "slug": "Supreme_Showdown_Floor_19"
+        },
+        {
+          "nameKo": "정상 대결 21층",
+          "slug": "Supreme_Showdown_Floor_21"
+        }
+      ],
+      "nameKo": "끓어오르는 화염의 바다",
+      "slug": "Blistering_Lava_Sea"
+    },
+    {
+      "areas": [
+        {
+          "nameKo": "어수선한 거리",
+          "slug": "Deserted_District"
+        },
+        {
+          "nameKo": "울부짖는 모래 마을",
+          "slug": "Singing_Sand"
+        },
+        {
+          "nameKo": "야인 마을",
+          "slug": "Demiman_Village"
+        },
+        {
+          "nameKo": "버려진 광장",
+          "slug": "Abandoned_Mines"
+        },
+        {
+          "nameKo": "회선 광장",
+          "slug": "Swirling_Mines"
+        },
+        {
+          "nameKo": "종식의 벽",
+          "slug": "Wall_of_the_Last_Breath"
+        },
+        {
+          "nameKo": "혹한의 왕좌",
+          "slug": "Throne_of_Winter"
+        },
+        {
+          "nameKo": "홀리 미궁",
+          "slug": "High_Court_Maze"
+        },
+        {
+          "nameKo": "비극의 숲",
+          "slug": "Grimwind_Woods"
+        },
+        {
+          "nameKo": "어둠의 전초전",
+          "slug": "Shadow_Outpost"
+        },
+        {
+          "nameKo": "홀리 레거시 우림",
+          "slug": "Rainforest_of_Divine_Legacy"
+        },
+        {
+          "nameKo": "신성 모독의 편전",
+          "slug": "Defiled_Side_Chamber"
+        },
+        {
+          "nameKo": "바람의 협곡",
+          "slug": "Blustery_Canyon"
+        },
+        {
+          "nameKo": "혹한의 왕좌: 차원1",
+          "slug": "Throne_of_Winter:_Plane_1"
+        },
+        {
+          "nameKo": "혹한의 왕좌: 차원2",
+          "slug": "Throne_of_Winter:_Plane_2"
+        },
+        {
+          "nameKo": "혹한의 왕좌: 차원3",
+          "slug": "Throne_of_Winter:_Plane_3"
+        },
+        {
+          "nameKo": "혹한의 왕좌: 차원4",
+          "slug": "Throne_of_Winter:_Plane_4"
+        },
+        {
+          "nameKo": "혹한의 왕좌: 차원5",
+          "slug": "Throne_of_Winter:_Plane_5"
+        },
+        {
+          "nameKo": "혹한의 왕좌: 차원6",
+          "slug": "Throne_of_Winter:_Plane_6"
+        },
+        {
+          "nameKo": "정상 대결 2층",
+          "slug": "Supreme_Showdown_Floor_2"
+        },
+        {
+          "nameKo": "정상 대결 3층",
+          "slug": "Supreme_Showdown_Floor_3"
+        },
+        {
+          "nameKo": "정상 대결 9층",
+          "slug": "Supreme_Showdown_Floor_9"
+        },
+        {
+          "nameKo": "정상 대결 7층",
+          "slug": "Supreme_Showdown_Floor_7"
+        },
+        {
+          "nameKo": "정상 대결 12층",
+          "slug": "Supreme_Showdown_Floor_12"
+        },
+        {
+          "nameKo": "정상 대결 6층",
+          "slug": "Supreme_Showdown_Floor_6"
+        },
+        {
+          "nameKo": "정상 대결 5층",
+          "slug": "Supreme_Showdown_Floor_5"
+        },
+        {
+          "nameKo": "정상 대결 1층",
+          "slug": "Supreme_Showdown_Floor_1"
+        },
+        {
+          "nameKo": "정상 대결 4층",
+          "slug": "Supreme_Showdown_Floor_4"
+        },
+        {
+          "nameKo": "정상 대결 15층",
+          "slug": "Supreme_Showdown_Floor_15"
+        },
+        {
+          "nameKo": "정상 대결 8층",
+          "slug": "Supreme_Showdown_Floor_8"
+        },
+        {
+          "nameKo": "정상 대결 16층",
+          "slug": "Supreme_Showdown_Floor_16"
+        },
+        {
+          "nameKo": "공경의 균열",
+          "slug": "Rift_of_Dimensions"
+        }
+      ],
+      "nameKo": "얼어붙은 심연",
+      "slug": "Glacial_Abyss"
+    },
+    {
+      "areas": [
+        {
+          "nameKo": "짐승들의 평원",
+          "slug": "Beast_Plains"
+        },
+        {
+          "nameKo": "가시나무 소굴",
+          "slug": "Thorny_Filth"
+        },
+        {
+          "nameKo": "하늘로 솟은 장벽",
+          "slug": "Cloud_Walls"
+        },
+        {
+          "nameKo": "잊혀진 거리",
+          "slug": "Alleys_of_the_Lost"
+        },
+        {
+          "nameKo": "순수의 벽",
+          "slug": "Wall_of_The_Pure"
+        },
+        {
+          "nameKo": "헤일로의 성전",
+          "slug": "Corona_Shrine"
+        },
+        {
+          "nameKo": "날조된 기념비",
+          "slug": "Imaginary_Monument"
+        },
+        {
+          "nameKo": "태양의 신전",
+          "slug": "Sun_Temple"
+        },
+        {
+          "nameKo": "바람이 잠든 절벽",
+          "slug": "Windbreath_Cliff"
+        },
+        {
+          "nameKo": "절망의 비밀 성전",
+          "slug": "Shrine_of_Despair"
+        },
+        {
+          "nameKo": "비명의 광구",
+          "slug": "Weeping_Mines"
+        },
+        {
+          "nameKo": "영광의 궁성",
+          "slug": "City_of_Eternal_Fire"
+        },
+        {
+          "nameKo": "단죄의 비밀 성전",
+          "slug": "Shrine_of_Punishment"
+        },
+        {
+          "nameKo": "날조된 기념비: 차원1",
+          "slug": "Imaginary_Monument:_Plane_1"
+        },
+        {
+          "nameKo": "날조된 기념비: 차원2",
+          "slug": "Imaginary_Monument:_Plane_2"
+        },
+        {
+          "nameKo": "날조된 기념비: 차원3",
+          "slug": "Imaginary_Monument:_Plane_3"
+        },
+        {
+          "nameKo": "날조된 기념비: 차원4",
+          "slug": "Imaginary_Monument:_Plane_4"
+        },
+        {
+          "nameKo": "날조된 기념비: 차원5",
+          "slug": "Imaginary_Monument:_Plane_5"
+        },
+        {
+          "nameKo": "날조된 기념비: 차원6",
+          "slug": "Imaginary_Monument:_Plane_6"
+        }
+      ],
+      "nameKo": "강철의 용광로",
+      "slug": "Steel_Forge"
+    },
+    {
+      "areas": [
+        {
+          "nameKo": "재앙의 불",
+          "slug": "Grove_of_Calamity"
+        },
+        {
+          "nameKo": "악마와 폐허의 땅",
+          "slug": "Desolate_Village"
+        },
+        {
+          "nameKo": "혼탁한 오아시스",
+          "slug": "Defiled_Oasis"
+        },
+        {
+          "nameKo": "왕의 허브",
+          "slug": "King's_Hub"
+        },
+        {
+          "nameKo": "안개비 밀림",
+          "slug": "Rainmist_Jungle"
+        },
+        {
+          "nameKo": "성스러운 정원",
+          "slug": "Sacred_Courtyard"
+        },
+        {
+          "nameKo": "번개 산마루",
+          "slug": "Summit_of_Thunder"
+        },
+        {
+          "nameKo": "축원의 성전",
+          "slug": "Prayer_Sanctuary"
+        },
+        {
+          "nameKo": "슬픈 가락의 장벽",
+          "slug": "Wall_of_Sorrows"
+        },
+        {
+          "nameKo": "거울 속의 강당",
+          "slug": "Hall_in_the_Mirror"
+        },
+        {
+          "nameKo": "메마른 광산",
+          "slug": "Thirsty_Mines"
+        },
+        {
+          "nameKo": "순례자의 거리",
+          "slug": "Alleys_of_Pilgrims"
+        },
+        {
+          "nameKo": "초승달의 회랑",
+          "slug": "Gallery_of_Moon"
+        },
+        {
+          "nameKo": "번개 산마루: 차원1",
+          "slug": "Summit_of_Thunder:_Plane_1"
+        },
+        {
+          "nameKo": "번개 산마루: 차원2",
+          "slug": "Summit_of_Thunder:_Plane_2"
+        },
+        {
+          "nameKo": "번개 산마루: 차원3",
+          "slug": "Summit_of_Thunder:_Plane_3"
+        },
+        {
+          "nameKo": "번개 산마루: 차원4",
+          "slug": "Summit_of_Thunder:_Plane_4"
+        },
+        {
+          "nameKo": "번개 산마루: 차원5",
+          "slug": "Summit_of_Thunder:_Plane_5"
+        },
+        {
+          "nameKo": "번개 산마루: 차원6",
+          "slug": "Summit_of_Thunder:_Plane_6"
+        }
+      ],
+      "nameKo": "천둥의 폐허",
+      "slug": "Thunder_Wastes"
+    },
+    {
+      "areas": [
+        {
+          "nameKo": "혼탁한 정글",
+          "slug": "Filthy_Forest"
+        },
+        {
+          "nameKo": "꿈을 잃은 숲",
+          "slug": "Dreamless_Thicket"
+        },
+        {
+          "nameKo": "고통의 비밀 성전",
+          "slug": "Shrine_of_Agony"
+        },
+        {
+          "nameKo": "잔잔한 빛의 습지",
+          "slug": "Shimmering_Swamp"
+        },
+        {
+          "nameKo": "종족 밀림",
+          "slug": "Jungle_of_the_Brood"
+        },
+        {
+          "nameKo": "별들의 회랑",
+          "slug": "Gallery_of_Stars"
+        },
+        {
+          "nameKo": "꿈을 잃은 심연",
+          "slug": "Dreamless_Abyss"
+        },
+        {
+          "nameKo": "비극의 숲",
+          "slug": "Grimwind_Woods"
+        },
+        {
+          "nameKo": "원소 광산",
+          "slug": "Elemental_Mine"
+        },
+        {
+          "nameKo": "찬란한 성좌",
+          "slug": "Luminescent_Throne"
+        },
+        {
+          "nameKo": "세속의 궁궐",
+          "slug": "Mundane_Palace"
+        },
+        {
+          "nameKo": "어두컴컴한 거리",
+          "slug": "Grim_Alleys"
+        },
+        {
+          "nameKo": "과거의 방",
+          "slug": "Yesterday_Chamber"
+        },
+        {
+          "nameKo": "꿈을 잃은 심연: 차원1",
+          "slug": "Dreamless_Abyss:_Plane_1"
+        },
+        {
+          "nameKo": "꿈을 잃은 심연: 차원2",
+          "slug": "Dreamless_Abyss:_Plane_2"
+        },
+        {
+          "nameKo": "꿈을 잃은 심연: 차원3",
+          "slug": "Dreamless_Abyss:_Plane_3"
+        },
+        {
+          "nameKo": "꿈을 잃은 심연: 차원4",
+          "slug": "Dreamless_Abyss:_Plane_4"
+        },
+        {
+          "nameKo": "꿈을 잃은 심연: 차원5",
+          "slug": "Dreamless_Abyss:_Plane_5"
+        },
+        {
+          "nameKo": "꿈을 잃은 심연: 차원6",
+          "slug": "Dreamless_Abyss:_Plane_6"
+        },
+        {
+          "nameKo": "일몰의 천장",
+          "slug": "Sunset_Dome_Bottom"
+        },
+        {
+          "nameKo": "원시적 전쟁터",
+          "slug": "Ancient_Battleground"
+        },
+        {
+          "nameKo": "영원의 광장",
+          "slug": "Plaza_of_Eternity"
+        },
+        {
+          "nameKo": "의지의 벽",
+          "slug": "Wall_of_Will"
+        },
+        {
+          "nameKo": "우주 장례 아케이드",
+          "slug": "Starfall_Galleria"
+        }
+      ],
+      "nameKo": "암흑의 땅",
+      "slug": "Voidlands"
+    },
+    {
+      "areas": [
+        {
+          "nameKo": "모래 속 목축지",
+          "slug": "Desert_Pasture"
+        },
+        {
+          "nameKo": "만경의 황야",
+          "slug": "Vast_Wasteland"
+        },
+        {
+          "nameKo": "광활한 사냥터",
+          "slug": "Boundless_Hunting_Ground"
+        },
+        {
+          "nameKo": "코어 광산",
+          "slug": "Core_Mine"
+        },
+        {
+          "nameKo": "끝없는 광야",
+          "slug": "Barren_Wilderness"
+        }
+      ],
+      "nameKo": "딥 스페이스",
+      "slug": "Deep_Space"
+    }
+  ],
+  "schemaVersion": 1,
+  "sources": {
+    "titrackLicense": "MIT",
+    "titrackZones": "https://raw.githubusercontent.com/astockman99/TITrack/master/src/titrack/data/zones.py",
+    "tlidb": "https://tlidb.com/ko/"
+  },
+  "unresolved": [],
+  "zonesByInternalCode": {
+    "BZ_JiangShengChao": {
+      "areaSlug": null,
+      "displayEn": "Secret Realm - Abyssal Vault",
+      "nameKo": "비경 - 심연의 보물고",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "BZ_NaGouZhiXi": {
+      "areaSlug": null,
+      "displayEn": "Secret Realm - Unholy Pedestal",
+      "nameKo": "비경 - 불경한 받침대",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "CC1_SiWangMiCheng": {
+      "areaSlug": null,
+      "displayEn": "Ruins of Aeterna: Boundless",
+      "nameKo": "이터나 유적: 무한",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "ChiGuiWuShi": {
+      "areaSlug": "Imaginary_Monument",
+      "displayEn": "Steel Forge - Imaginary Monument",
+      "nameKo": "날조된 기념비",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "DD_ChaoBaiZhiLu": {
+      "areaSlug": "Path_of_Sacrifice",
+      "displayEn": "Blistering Lava Sea - Path of Sacrifice",
+      "nameKo": "헌신의 길",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "DD_DiDuTingYuan000": {
+      "areaSlug": "Sacred_Courtyard",
+      "displayEn": "Thunder Wastes - Sacred Courtyard",
+      "nameKo": "성스러운 정원",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "DD_DiDuTingYuan200": {
+      "areaSlug": "Court_of_Darkness",
+      "displayEn": "Blistering Lava Sea - Court of Darkness",
+      "nameKo": "암흑의 왕정",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "DD_JueWangZhiQiang": {
+      "areaSlug": "Wall_of_The_Pure",
+      "displayEn": "Steel Forge - Wall of the Pure",
+      "nameKo": "순수의 벽",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "DD_QunLangJieXiang": {
+      "areaSlug": "Grim_Alleys",
+      "displayEn": "Voidlands - Grim Alleys",
+      "nameKo": "어두컴컴한 거리",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "DD_ShengTingZhuangYuan": {
+      "areaSlug": null,
+      "displayEn": "Hideout - Sacred Court Manor",
+      "nameKo": "은신처 - 성스러운 정원 저택",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "DD_ShengTingZhuangYuan000": {
+      "areaSlug": "Mundane_Palace",
+      "displayEn": "Voidlands - Mundane Palace",
+      "nameKo": "세속의 궁궐",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "DD_TanXiZhiQiang": {
+      "areaSlug": "Wall_of_Sorrows",
+      "displayEn": "Thunder Wastes - Wall of Sorrows",
+      "nameKo": "슬픈 가락의 장벽",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "DD_TingYuanMiGong": {
+      "areaSlug": "High_Court_Maze",
+      "displayEn": "Glacial Abyss - High Court Maze",
+      "nameKo": "홀리 미궁",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "DD_XinTuJieXiang": {
+      "areaSlug": "Alleys_of_Pilgrims",
+      "displayEn": "Thunder Wastes - Alleys of Pilgrims",
+      "nameKo": "순례자의 거리",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "DD_YinYanJieXiang": {
+      "areaSlug": "Alleys_of_the_Lost",
+      "displayEn": "Steel Forge - Alleys of the Lost",
+      "nameKo": "잊혀진 거리",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "DD_ZaWuJieQu": {
+      "areaSlug": "Deserted_District",
+      "displayEn": "Glacial Abyss - Deserted District",
+      "nameKo": "어수선한 거리",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "DiXiaZhenSuo": {
+      "areaSlug": null,
+      "displayEn": "Vorax - Shelly's Operating Theater",
+      "nameKo": "보락스 - 셀리의 수술실",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "DiaoLingWangYu": {
+      "areaSlug": "Dreamless_Abyss",
+      "displayEn": "Voidlands - Dreamless Abyss",
+      "nameKo": "꿈을 잃은 심연",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "GeBuLinCunLuo": {
+      "areaSlug": null,
+      "displayEn": "Demiman Village",
+      "nameKo": "야인 마을",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "HD_EMengZhiXia": {
+      "areaSlug": null,
+      "displayEn": "Secret Realm - Sea of Rites",
+      "nameKo": "비경 - 의식의 바다",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "HD_YingGuangDianTang": {
+      "areaSlug": null,
+      "displayEn": "Secret Realm - Invaluable Time",
+      "nameKo": "비경 - 귀중한 시간",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "JH_JiaoTangDaTing": {
+      "areaSlug": "Prayer_Sanctuary",
+      "displayEn": "Thunder Wastes - Prayer Sanctuary",
+      "nameKo": "축원의 성전",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "JH_JueXingMiDian": {
+      "areaSlug": "Shrine_of_Despair",
+      "displayEn": "Steel Forge - Shrine of Despair",
+      "nameKo": "절망의 비밀 성전",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "JH_MengZhongShengDi": {
+      "areaSlug": "Shimmering_Hall",
+      "displayEn": "Blistering Lava Sea - Shimmering Hall",
+      "nameKo": "잔잔한 빛의 강당",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "JH_ShenHeJuSuo": {
+      "areaSlug": "Luminescent_Throne",
+      "displayEn": "Voidlands - Luminescent Throne",
+      "nameKo": "찬란한 성좌",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "JH_ShengDeLanXiuDaoYuan": {
+      "areaSlug": "Confession_Chapel",
+      "displayEn": "Blistering Lava Sea - Confession Chapel",
+      "nameKo": "참회의 성전",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "JH_TongKuMiDian": {
+      "areaSlug": "Shrine_of_Punishment",
+      "displayEn": "Steel Forge - Shrine of Punishment",
+      "nameKo": "단죄의 비밀 성전",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "JH_YiWangMiDian": {
+      "areaSlug": "Shrine_of_Agony",
+      "displayEn": "Voidlands - Shrine of Agony",
+      "nameKo": "고통의 비밀 성전",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "JH_YinNiShengTang": {
+      "areaSlug": "Yesterday_Chamber",
+      "displayEn": "Voidlands - Yesterday Chamber",
+      "nameKo": "과거의 방",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "JH_ZuiRenMiDian": {
+      "areaSlug": "Where_Lies_Confession",
+      "displayEn": "Blistering Lava Sea - Where Lies Confession",
+      "nameKo": "고해의 방",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "KD_AiRenDiErCeng": {
+      "areaSlug": "Weeping_Mines",
+      "displayEn": "Steel Forge - Weeping Mines",
+      "nameKo": "비명의 광구",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "KD_AiRenDiSanCeng": {
+      "areaSlug": "Heart_of_the_Mountains",
+      "displayEn": "Blistering Lava Sea - Heart of the Mountains",
+      "nameKo": "산의 마음",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "KD_AiRenKuangDong": {
+      "areaSlug": "Abandoned_Mines",
+      "displayEn": "Glacial Abyss - Abandoned Mines",
+      "nameKo": "버려진 광장",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "KD_CangBaoDongKu": {
+      "areaSlug": "Thirsty_Mines",
+      "displayEn": "Thunder Wastes - Thirsty Mines",
+      "nameKo": "메마른 광산",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "KD_DiXinKuangChang": {
+      "areaSlug": "Core_Mine",
+      "displayEn": "Deep Space - Core Mine",
+      "nameKo": "코어 광산",
+      "regionKo": "딥 스페이스",
+      "regionSlug": "Deep_Space"
+    },
+    "KD_RongHuoHeXin": {
+      "areaSlug": "Smelting_Plant",
+      "displayEn": "Blistering Lava Sea - Smelting Plant",
+      "nameKo": "제련소",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "KD_WeiJiKuangDong": {
+      "areaSlug": "Swirling_Mines",
+      "displayEn": "Glacial Abyss - Swirling Mines",
+      "nameKo": "회선 광장",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "KD_YuanSuKuangDong": {
+      "areaSlug": "Elemental_Mine",
+      "displayEn": "Blistering Lava Sea - Elemental Mine",
+      "nameKo": "원소 광산",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "LeiYingJiDian": {
+      "areaSlug": "Summit_of_Thunder",
+      "displayEn": "Thunder Wastes - Summit of Thunder",
+      "nameKo": "번개 산마루",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "LieXiKongJing": {
+      "areaSlug": null,
+      "displayEn": "Rift of Dimensions",
+      "nameKo": "차원의 균열",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "MuBiaoTiaoZhan": {
+      "areaSlug": null,
+      "displayEn": "Supreme Showdown",
+      "nameKo": "최고 대결",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "SD_DaHuangZhiYe": {
+      "areaSlug": "Barren_Wilderness",
+      "displayEn": "Deep Space - Barren Wilderness",
+      "nameKo": "끝없는 광야",
+      "regionKo": "딥 스페이스",
+      "regionSlug": "Deep_Space"
+    },
+    "SD_DuiLongJuQiang": {
+      "areaSlug": "Cloud_Walls",
+      "displayEn": "Steel Forge - Cloud Walls",
+      "nameKo": "하늘로 솟은 장벽",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "SD_GeBuLinShanZhai": {
+      "areaSlug": "Shadow_Outpost",
+      "displayEn": "Glacial Abyss - Shadow Outpost",
+      "nameKo": "어둠의 전초전",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "SD_GeBuLinYingDi": {
+      "areaSlug": "Blustery_Canyon",
+      "displayEn": "Glacial Abyss - Blustery Canyon",
+      "nameKo": "바람의 협곡",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "SD_GuangMaoLieChang": {
+      "areaSlug": "Boundless_Hunting_Ground",
+      "displayEn": "Deep Space - Boundless Hunting Ground",
+      "nameKo": "광활한 사냥터",
+      "regionKo": "딥 스페이스",
+      "regionSlug": "Deep_Space"
+    },
+    "SD_ShengHuoLing": {
+      "areaSlug": "Rainmist_Jungle",
+      "displayEn": "Thunder Wastes - Rainmist Jungle",
+      "nameKo": "안개비 밀림",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "SD_ShouGuLinDi": {
+      "areaSlug": "Twisted_Valley",
+      "displayEn": "Blistering Lava Sea - Twisted Valley",
+      "nameKo": "뒤틀린 골짜기",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "SD_ShouGuSiDi": {
+      "areaSlug": "Dragonrest_Canyon",
+      "displayEn": "Blistering Lava Sea - Dragonrest Cavern",
+      "nameKo": "용의 잠든 협곡",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "SD_YuanGuTongDao": {
+      "areaSlug": "Beast_Plains",
+      "displayEn": "Steel Forge - Beast Plains",
+      "nameKo": "짐승들의 평원",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "SD_ZhongXiGaoQiang": {
+      "areaSlug": "Wall_of_the_Last_Breath",
+      "displayEn": "Glacial Abyss - Wall of the Last Breath",
+      "nameKo": "종식의 벽",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "SQ_BianChuiZhiDi": {
+      "areaSlug": "Savage_Grasslands",
+      "displayEn": "Blistering Lava Sea - Savage Grasslands",
+      "nameKo": "황야의 들판",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "SQ_EWuHuangCun": {
+      "areaSlug": "Desolate_Village",
+      "displayEn": "Thunder Wastes - Desolate Village",
+      "nameKo": "악마와 폐허의 땅",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "SQ_JingJiHuiTu": {
+      "areaSlug": "Thorny_Filth",
+      "displayEn": "Steel Forge - Thorny Filth",
+      "nameKo": "가시나무 소굴",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "SQ_MingShaJuLuo": {
+      "areaSlug": "Singing_Sand",
+      "displayEn": "Glacial Abyss - Singing Sand",
+      "nameKo": "울부짖는 모래 마을",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "SQ_NvShenQunBai": {
+      "areaSlug": "Defiled_Oasis",
+      "displayEn": "Thunder Wastes - Defiled Oasis",
+      "nameKo": "혼탁한 오아시스",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "SQ_ShaZhongMuYuan": {
+      "areaSlug": "Desert_Pasture",
+      "displayEn": "Deep Space - Desert Pasture",
+      "nameKo": "모래 속 목축지",
+      "regionKo": "딥 스페이스",
+      "regionSlug": "Deep_Space"
+    },
+    "SQ_XiongShiZhiXin": {
+      "areaSlug": "King's_Hub",
+      "displayEn": "Thunder Wastes - King's Hub",
+      "nameKo": "왕의 허브",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "SQ_ZheFengBiZhang": {
+      "areaSlug": "Windbreath_Cliff",
+      "displayEn": "Steel Forge - Windbreath Cliff",
+      "nameKo": "바람이 잠든 절벽",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "SuMingTaLuo": {
+      "areaSlug": null,
+      "displayEn": "Fateful Contest",
+      "nameKo": "운명의 대결",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "WuDuYiZhi": {
+      "areaSlug": null,
+      "displayEn": "Mistville",
+      "nameKo": "안개 도시",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "XZ_YuJinZhiXiBiNanSuo": {
+      "areaSlug": null,
+      "displayEn": "Hideout - Ember's Rest",
+      "nameKo": "은신처 - 불꽃의 안식처",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "XuHaiZhongGang": {
+      "areaSlug": null,
+      "displayEn": "Void Sea Terminal",
+      "nameKo": "허공의 바다 터미널",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "XueYuRongLu": {
+      "areaSlug": null,
+      "displayEn": "The Frozen Canvas",
+      "nameKo": "얼어붙은 화폭",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "YJ_LiuJinJieQu": {
+      "areaSlug": "Gallery_of_Moon",
+      "displayEn": "Thunder Wastes - Gallery of Moon",
+      "nameKo": "초승달의 회랑",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "YJ_LuoRiQiongDi": {
+      "areaSlug": "Sunset_Dome_Bottom",
+      "displayEn": "Blistering Lava Sea - Sunset Dome Bottom",
+      "nameKo": "일몰의 천장",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "YJ_RiXiShenMiao": {
+      "areaSlug": "Sun_Temple",
+      "displayEn": "Steel Forge - Sun Temple",
+      "nameKo": "태양의 신전",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "YJ_ShuXiDaTing": {
+      "areaSlug": "Hall_in_the_Mirror",
+      "displayEn": "Thunder Wastes - Hall in the Mirror",
+      "nameKo": "거울 속의 강당",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "YJ_TaiYangWangTing": {
+      "areaSlug": "City_of_Eternal_Fire",
+      "displayEn": "Steel Forge - City of Eternal Fire",
+      "nameKo": "영광의 궁성",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "YJ_XieDuYuZuo": {
+      "areaSlug": "Defiled_Side_Chamber",
+      "displayEn": "Glacial Abyss - Defiled Side Chamber",
+      "nameKo": "신성 모독의 편전",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "YJ_XiuShiShenYuan": {
+      "areaSlug": null,
+      "displayEn": "Rusted Abyss",
+      "nameKo": "녹슨 심연",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "YJ_YingLingShenDian": {
+      "areaSlug": "Corona_Shrine",
+      "displayEn": "Steel Forge - Corona Shrine",
+      "nameKo": "헤일로의 성전",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "YJ_YongZhouHuiLang": {
+      "areaSlug": "Gallery_of_Stars",
+      "displayEn": "Voidlands - Gallery of Stars",
+      "nameKo": "별들의 회랑",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "YL_BeiFengLinDi": {
+      "areaSlug": null,
+      "displayEn": "Grimwind Woods",
+      "nameKo": "비극의 숲",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "YL_KuangReYuLin": {
+      "areaSlug": "Shimmering_Swamp",
+      "displayEn": "Voidlands - Shimmering Swamp",
+      "nameKo": "잔잔한 빛의 습지",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "YL_MaNeiLaYuLin": {
+      "areaSlug": "Filthy_Forest",
+      "displayEn": "Voidlands - Filthy Forest",
+      "nameKo": "혼탁한 정글",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "YL_MiWuYuLin": {
+      "areaSlug": "Dreamless_Thicket",
+      "displayEn": "Voidlands - Dreamless Thicket",
+      "nameKo": "꿈을 잃은 숲",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "YL_WanQingHuangLin": {
+      "areaSlug": "Vast_Wasteland",
+      "displayEn": "Deep Space - Vast Wasteland",
+      "nameKo": "만경의 황야",
+      "regionKo": "딥 스페이스",
+      "regionSlug": "Deep_Space"
+    },
+    "YL_XiDiChongGu": {
+      "areaSlug": "Jungle_of_the_Brood",
+      "displayEn": "Voidlands - Jungle of the Brood",
+      "nameKo": "종족 밀림",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "YL_YinYiZhiDi": {
+      "areaSlug": "Rainforest_of_Divine_Legacy",
+      "displayEn": "Glacial Abyss - Rainforest of Divine Legacy",
+      "nameKo": "홀리 레거시 우림",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "YanYuZhiGu": {
+      "areaSlug": "Hellfire_Chasm",
+      "displayEn": "Blistering Lava Sea - Hellfire Chasm",
+      "nameKo": "지옥계곡",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "YongShuangBingPo": {
+      "areaSlug": "Throne_of_Winter",
+      "displayEn": "Glacial Abyss - Throne of Winter",
+      "nameKo": "혹한의 왕좌",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "YunDuanLvZhou": {
+      "areaSlug": null,
+      "displayEn": "Cloud Oasis (Sandlord)",
+      "nameKo": "구름 오아시스",
+      "regionKo": null,
+      "regionSlug": null
+    }
+  },
+  "zonesByLevelId": {
+    "212023": {
+      "areaSlug": null,
+      "displayEn": "Trial of Divinity",
+      "nameKo": "신성의 시련",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "234020": {
+      "areaSlug": null,
+      "displayEn": "Secret Realm - Sea of Rites",
+      "nameKo": "비경 - 의식의 바다",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "3006": {
+      "areaSlug": "Throne_of_Winter",
+      "displayEn": "Glacial Abyss - Throne of Winter",
+      "nameKo": "혹한의 왕좌",
+      "regionKo": "얼어붙은 심연",
+      "regionSlug": "Glacial_Abyss"
+    },
+    "3016": {
+      "areaSlug": "Hellfire_Chasm",
+      "displayEn": "Blistering Lava Sea - Hellfire Chasm",
+      "nameKo": "지옥계곡",
+      "regionKo": "끓어오르는 화염의 바다",
+      "regionSlug": "Blistering_Lava_Sea"
+    },
+    "3026": {
+      "areaSlug": "Imaginary_Monument",
+      "displayEn": "Steel Forge - Imaginary Monument",
+      "nameKo": "날조된 기념비",
+      "regionKo": "강철의 용광로",
+      "regionSlug": "Steel_Forge"
+    },
+    "3036": {
+      "areaSlug": "Summit_of_Thunder",
+      "displayEn": "Thunder Wastes - Summit of Thunder",
+      "nameKo": "번개 산마루",
+      "regionKo": "천둥의 폐허",
+      "regionSlug": "Thunder_Wastes"
+    },
+    "3046": {
+      "areaSlug": "Dreamless_Abyss",
+      "displayEn": "Voidlands - Dreamless Abyss",
+      "nameKo": "꿈을 잃은 심연",
+      "regionKo": "암흑의 땅",
+      "regionSlug": "Voidlands"
+    },
+    "999901": {
+      "areaSlug": null,
+      "displayEn": "Path of the Brave",
+      "nameKo": "용자의 길",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "999902": {
+      "areaSlug": null,
+      "displayEn": "Path of the Brave",
+      "nameKo": "용자의 길",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "999903": {
+      "areaSlug": null,
+      "displayEn": "Path of the Brave",
+      "nameKo": "용자의 길",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "999904": {
+      "areaSlug": null,
+      "displayEn": "Path of the Brave",
+      "nameKo": "용자의 길",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "999905": {
+      "areaSlug": null,
+      "displayEn": "Path of the Brave",
+      "nameKo": "용자의 길",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "9999997": {
+      "areaSlug": null,
+      "displayEn": "Quicksand Treasure Stash (Sandlord)",
+      "nameKo": "유사 보물 창고",
+      "regionKo": null,
+      "regionSlug": null
+    },
+    "9999999": {
+      "areaSlug": null,
+      "displayEn": "Cloud Oasis (Sandlord)",
+      "nameKo": "구름 오아시스",
+      "regionKo": null,
+      "regionSlug": null
+    }
+  }
+}

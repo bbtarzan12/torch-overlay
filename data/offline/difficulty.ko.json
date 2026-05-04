@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "locale": "ko",
+  "description": "Torchlight Infinite Netherrealm difficulty display rules for UE_game.log parsing.",
+  "source": {
+    "confirmedByLogSamples": true,
+    "notes": [
+      "Use AreaLv as the primary difficulty signal when it appears near LevelMgr/MapName events.",
+      "MapOrder is not difficulty; observed 5단계 map logged MapOrder 8.",
+      "LevelUid can be used as a fallback because observed Netherrealm LevelUid values encode the same internal level after the leading 10 prefix, e.g. 104 -> AreaLv 4, 106 -> AreaLv 6.",
+      "Observed 8-0 on a non-season server with AreaLv 9 and LevelUid 1091101; difficulty parsing should not depend on season server state.",
+      "Observed 아득한 8단계 with AreaLv 12 and LevelUid 1121109.",
+      "Observed 딥 스페이스 with AreaId 2000, AreaLv 13, LevelUid 1132004, and a normal-looking map path such as /Game/Art/Maps/01SD/SD_DaHuangZhiYe200; do not detect Deep Space by checking for Deep_Space in the UE map path."
+    ]
+  },
+  "displayOrder": [
+    "5단계",
+    "6단계",
+    "7-0",
+    "7-1",
+    "7-2",
+    "8-0",
+    "8-1",
+    "8-2",
+    "아득한 8단계",
+    "딥 스페이스"
+  ],
+  "areaLvToDisplay": {
+    "4": {
+      "display": "5단계",
+      "status": "confirmed"
+    },
+    "5": {
+      "display": "6단계",
+      "status": "inferred"
+    },
+    "6": {
+      "display": "7-0",
+      "status": "confirmed"
+    },
+    "7": {
+      "display": "7-1",
+      "status": "confirmed"
+    },
+    "8": {
+      "display": "7-2",
+      "status": "confirmed"
+    },
+    "9": {
+      "display": "8-0",
+      "status": "confirmed"
+    },
+    "10": {
+      "display": "8-1",
+      "status": "expected"
+    },
+    "11": {
+      "display": "8-2",
+      "status": "expected"
+    },
+    "12": {
+      "display": "아득한 8단계",
+      "status": "confirmed"
+    },
+    "13": {
+      "display": "딥 스페이스",
+      "status": "confirmed"
+    }
+  },
+  "specialDifficulties": [
+    {
+      "display": "딥 스페이스",
+      "status": "confirmed",
+      "match": {
+        "areaId": 2000,
+        "areaLv": 13,
+        "levelUidPrefix": "113",
+        "regionSlug": "Deep_Space"
+      }
+    }
+  ]
+}
