@@ -117,6 +117,12 @@ struct PriceResponse {
     raw_lines: Vec<String>,
 }
 
+#[derive(Debug, Default)]
+struct PriceGroup {
+    currency_base_id: Option<i64>,
+    unit_prices: Vec<f64>,
+}
+
 #[derive(Debug)]
 struct MessageBlock {
     syn_id: String,
@@ -589,7 +595,7 @@ impl LogTracker {
             return Ok(());
         };
 
-        let selected_price = median(response.unit_prices.clone());
+        let selected_price = round_collected_price(estimate_price(response.unit_prices.clone()));
         let unit_prices_json =
             serde_json::to_string(&response.unit_prices).map_err(|error| error.to_string())?;
         let raw_response = response.raw_lines.join("\n");
@@ -609,8 +615,22 @@ impl LogTracker {
     }
 
     fn build_snapshot(&self) -> TrackerSnapshot {
-        let current_run = self.current_run.as_ref().map_or_else(
-            || CurrentRun {
+        let active_valuation = self
+            .current_run
+            .as_ref()
+            .map(|run| value_loot(&run.loot, &self.price_cache, &self.ignored_item_ids));
+        let current_run = if let Some(run) = &self.current_run {
+            current_run_summary(
+                run,
+                Utc::now(),
+                active_valuation.as_ref().expect("active valuation exists"),
+            )
+        } else if let Some(run) = self.completed_runs.last() {
+            let ended_at = run.ended_at.unwrap_or(run.last_seen_at);
+            let valuation = value_loot(&run.loot, &self.price_cache, &self.ignored_item_ids);
+            current_run_summary(run, ended_at, &valuation)
+        } else {
+            CurrentRun {
                 map_name_ko: "대기 중".to_string(),
                 difficulty: "-".to_string(),
                 elapsed_seconds: 0,
@@ -619,27 +639,19 @@ impl LogTracker {
                 total_estimated_value: 0.0,
                 unpriced_item_count: 0,
                 item_count: 0,
-            },
-            |run| {
-                let valuation = value_loot(&run.loot, &self.price_cache, &self.ignored_item_ids);
-                CurrentRun {
-                    map_name_ko: run.map_name_ko.clone(),
-                    difficulty: run.difficulty.clone(),
-                    elapsed_seconds: duration_seconds(run.started_at, Utc::now()),
-                    crystal: valuation.crystal,
-                    estimated_item_value: valuation.estimated_item_value,
-                    total_estimated_value: valuation.total_estimated_value,
-                    unpriced_item_count: valuation.unpriced_item_count,
-                    item_count: valuation.item_count,
-                }
-            },
-        );
+            }
+        };
 
         let mut runs = Vec::new();
-        let mut total_crystal = current_run.crystal;
-        let mut estimated_item_value = current_run.estimated_item_value;
-        let mut total_estimated_value = current_run.total_estimated_value;
-        let mut unpriced_item_count = current_run.unpriced_item_count;
+        let mut total_crystal = active_valuation
+            .as_ref()
+            .map_or(0.0, |valuation| valuation.crystal);
+        let mut estimated_item_value = active_valuation
+            .as_ref()
+            .map_or(0.0, |valuation| valuation.estimated_item_value);
+        let mut total_estimated_value = active_valuation
+            .as_ref()
+            .map_or(0.0, |valuation| valuation.total_estimated_value);
         let mut completed_seconds = 0;
 
         for run in &self.completed_runs {
@@ -650,7 +662,6 @@ impl LogTracker {
             total_crystal += valuation.crystal;
             estimated_item_value += valuation.estimated_item_value;
             total_estimated_value += valuation.total_estimated_value;
-            unpriced_item_count += valuation.unpriced_item_count;
             completed_seconds += duration;
 
             runs.push(RunSummary {
@@ -676,8 +687,9 @@ impl LogTracker {
         } else {
             total_estimated_value / runs.len() as f64
         };
-        let recent_loot = self.recent_loot();
         let items = self.item_valuation_rows();
+        let item_table_unpriced_count = items.iter().filter(|item| item.unpriced).count() as i64;
+        let recent_loot = self.recent_loot();
 
         TrackerSnapshot {
             current_run,
@@ -687,7 +699,7 @@ impl LogTracker {
             total_estimated_value,
             average_rate,
             average_per_run,
-            unpriced_item_count,
+            unpriced_item_count: item_table_unpriced_count,
             known_price_count: self.price_cache.len() as i64,
             recent_loot,
             items,
@@ -727,8 +739,15 @@ impl LogTracker {
             }
         }
 
+        for config_base_id in self.price_cache.keys().chain(self.ignored_item_ids.iter()) {
+            quantities.entry(*config_base_id).or_insert(0.0);
+        }
+
         let mut rows = quantities
             .into_iter()
+            .filter(|(config_base_id, quantity)| {
+                *config_base_id != CRYSTAL_BASE_ID || *quantity > 0.0
+            })
             .map(|(config_base_id, quantity)| {
                 item_valuation_row(
                     config_base_id,
@@ -764,6 +783,23 @@ struct LootValuation {
     total_estimated_value: f64,
     unpriced_item_count: i64,
     item_count: i64,
+}
+
+fn current_run_summary(
+    run: &RunState,
+    ended_at: DateTime<Utc>,
+    valuation: &LootValuation,
+) -> CurrentRun {
+    CurrentRun {
+        map_name_ko: run.map_name_ko.clone(),
+        difficulty: run.difficulty.clone(),
+        elapsed_seconds: duration_seconds(run.started_at, ended_at),
+        crystal: valuation.crystal,
+        estimated_item_value: valuation.estimated_item_value,
+        total_estimated_value: valuation.total_estimated_value,
+        unpriced_item_count: valuation.unpriced_item_count,
+        item_count: valuation.item_count,
+    }
 }
 
 fn value_loot(
@@ -1011,20 +1047,60 @@ fn parse_price_response(lines: &[String]) -> PriceResponse {
         raw_lines: lines.to_vec(),
         ..PriceResponse::default()
     };
+    let mut groups = BTreeMap::<i64, PriceGroup>::new();
+    let mut current_group_id = None;
 
     for line in lines {
-        if line.contains("+currency [") {
-            response.currency_base_id = parse_bracket_i64(line);
-        } else if line.contains("+itemGoldId [") {
+        if line.contains("+itemGoldId [") {
             response.item_gold_id = parse_bracket_i64(line);
-        } else if line.contains('.') {
+            continue;
+        }
+
+        if let Some(group_id) = parse_price_group_id(line) {
+            current_group_id = Some(group_id);
+        }
+
+        if line.contains("+currency [") {
+            if let Some(currency_base_id) = parse_bracket_i64(line) {
+                let group_id = current_group_id.unwrap_or(1);
+                groups.entry(group_id).or_default().currency_base_id = Some(currency_base_id);
+            }
+            continue;
+        }
+
+        if line.contains('.') {
             if let Some(value) = parse_bracket_f64(line) {
-                response.unit_prices.push(value);
+                let group_id = current_group_id.unwrap_or(1);
+                groups.entry(group_id).or_default().unit_prices.push(value);
             }
         }
     }
 
+    if let Some((_, group)) = groups.into_iter().find(|(_, group)| {
+        group.currency_base_id == Some(CRYSTAL_BASE_ID) && !group.unit_prices.is_empty()
+    }) {
+        response.currency_base_id = group.currency_base_id;
+        response.unit_prices = group.unit_prices;
+    }
+
     response
+}
+
+fn parse_price_group_id(line: &str) -> Option<i64> {
+    parse_number_after(line, "+prices+").or_else(|| {
+        if !line.contains("+unitPrices") && !line.contains("+currency") {
+            return None;
+        }
+
+        let rest = line.split_once('+')?.1;
+        let digits_len = rest
+            .char_indices()
+            .take_while(|(_, character)| character.is_ascii_digit())
+            .map(|(index, character)| index + character.len_utf8())
+            .last()?;
+
+        rest.get(..digits_len)?.parse().ok()
+    })
 }
 
 fn parse_number_after(line: &str, marker: &str) -> Option<i64> {
@@ -1156,4 +1232,72 @@ fn duration_seconds(start: DateTime<Utc>, end: DateTime<Utc>) -> i64 {
 fn median(mut values: Vec<f64>) -> f64 {
     values.sort_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
     values[values.len() / 2]
+}
+
+fn estimate_price(mut values: Vec<f64>) -> f64 {
+    values.retain(|value| value.is_finite() && *value > 0.0);
+    values.sort_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
+
+    match values.len() {
+        0 => 0.0,
+        1 | 2 => values[0],
+        3..=9 => {
+            let lower_count = values.len().min(3);
+            median(values[..lower_count].to_vec())
+        }
+        len => {
+            let index = ((len - 1) as f64 * 0.10).round() as usize;
+            values[index.min(len - 1)]
+        }
+    }
+}
+
+fn round_collected_price(value: f64) -> f64 {
+    if !value.is_finite() || value <= 0.0 {
+        return 0.0;
+    }
+
+    let rounded = (value * 100.0).round() / 100.0;
+    if rounded <= 0.0 {
+        0.01
+    } else {
+        rounded
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_crystal_price_group_when_other_currency_is_present() {
+        let response = parse_price_response(&[
+            "+prices+1+unitPrices+1 [0.13000327189443]".to_string(),
+            "|      | |          +2 [0.13000946670874]".to_string(),
+            "|      | +currency [100300]".to_string(),
+            "|      +2+unitPrices+1 [10086.0]".to_string(),
+            "|      | +currency [100200]".to_string(),
+            "+errCode".to_string(),
+        ]);
+
+        assert_eq!(response.currency_base_id, Some(CRYSTAL_BASE_ID));
+        assert_eq!(
+            response.unit_prices,
+            vec![0.13000327189443, 0.13000946670874]
+        );
+    }
+
+    #[test]
+    fn estimates_price_from_low_percentile_without_quantity_weighting() {
+        let price = estimate_price(vec![10.0, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]);
+
+        assert_eq!(price, 1.1);
+    }
+
+    #[test]
+    fn rounds_collected_price_to_two_decimals() {
+        assert_eq!(round_collected_price(1.234), 1.23);
+        assert_eq!(round_collected_price(1.235), 1.24);
+        assert_eq!(round_collected_price(0.004), 0.01);
+    }
 }

@@ -7,19 +7,44 @@ mod offline_items;
 mod parser;
 mod tracker;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, OpenOptions},
     io::Write,
-    path::PathBuf,
-    sync::Mutex,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex, OnceLock},
 };
-use tauri::{LogicalSize, Manager, State, Window};
+use tauri::{LogicalSize, Manager, PhysicalPosition, State, Window, WindowEvent};
 use tracker::{LogTracker, TrackerSnapshot};
 
 struct AppState {
     tracker: Mutex<LogTracker>,
 }
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+struct SavedWindowPosition {
+    x: i32,
+    y: i32,
+}
+
+#[derive(Debug, Clone)]
+struct PhysicalClickableRect {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+#[cfg(windows)]
+#[derive(Debug, Default)]
+struct OverlayHitTestState {
+    position_locked: bool,
+    clickable_rects: Vec<PhysicalClickableRect>,
+    previous_wndproc: isize,
+}
+
+#[cfg(windows)]
+static OVERLAY_HIT_TEST_STATE: OnceLock<Arc<Mutex<OverlayHitTestState>>> = OnceLock::new();
 
 #[derive(Debug, Deserialize)]
 struct ClickableRect {
@@ -31,24 +56,20 @@ struct ClickableRect {
 
 #[tauri::command]
 fn set_position_locked(locked: bool) -> Result<(), String> {
-    let _ = locked;
+    update_position_locked_state(locked);
     Ok(())
 }
 
 #[tauri::command]
-fn set_clickable_rects(rects: Vec<ClickableRect>) -> Result<(), String> {
-    let _total_area: f64 = rects
-        .iter()
-        .map(|rect| rect.width.max(0.0) * rect.height.max(0.0) + rect.x * 0.0 + rect.y * 0.0)
-        .sum();
-
+fn set_clickable_rects(window: Window, rects: Vec<ClickableRect>) -> Result<(), String> {
+    update_clickable_rects(&window, rects);
     Ok(())
 }
 
 #[tauri::command]
 fn set_overlay_window_size(window: Window, width: f64, height: f64) -> Result<(), String> {
     let width = width.clamp(360.0, 2400.0);
-    let height = height.clamp(46.0, 900.0);
+    let height = height.clamp(30.0, 900.0);
 
     window
         .set_size(LogicalSize::new(width, height))
@@ -137,7 +158,10 @@ fn main() {
                 tracker: Mutex::new(tracker),
             });
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_size(LogicalSize::new(1404.0, 46.0));
+                let _ = window.set_size(LogicalSize::new(1380.0, 30.0));
+                restore_window_position(&window, app.handle());
+                install_window_position_persistence(&window, app.handle());
+                install_overlay_hit_test(&window);
             }
             write_diagnostic("setup completed");
             Ok(())
@@ -187,6 +211,185 @@ fn apply_window_opacity(window: &Window, opacity: f64) -> Result<(), String> {
 #[cfg(not(windows))]
 fn apply_window_opacity(_window: &Window, _opacity: f64) -> Result<(), String> {
     Ok(())
+}
+
+fn restore_window_position(window: &tauri::WebviewWindow, app: &tauri::AppHandle) {
+    let Some(position) = load_window_position(app) else {
+        return;
+    };
+
+    let _ = window.set_position(PhysicalPosition::new(position.x, position.y));
+}
+
+fn install_window_position_persistence(window: &tauri::WebviewWindow, app: &tauri::AppHandle) {
+    let Some(path) = window_position_path(app) else {
+        return;
+    };
+
+    window.on_window_event(move |event| {
+        if let WindowEvent::Moved(position) = event {
+            save_window_position(
+                &path,
+                SavedWindowPosition {
+                    x: position.x,
+                    y: position.y,
+                },
+            );
+        }
+    });
+}
+
+fn load_window_position(app: &tauri::AppHandle) -> Option<SavedWindowPosition> {
+    let path = window_position_path(app)?;
+    let raw = fs::read_to_string(path).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+fn save_window_position(path: &Path, position: SavedWindowPosition) {
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+
+    if let Ok(raw) = serde_json::to_string(&position) {
+        let _ = fs::write(path, raw);
+    }
+}
+
+fn window_position_path(app: &tauri::AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|path| path.join("window-position.json"))
+}
+
+#[cfg(windows)]
+fn overlay_hit_test_state() -> &'static Arc<Mutex<OverlayHitTestState>> {
+    OVERLAY_HIT_TEST_STATE.get_or_init(|| Arc::new(Mutex::new(OverlayHitTestState::default())))
+}
+
+#[cfg(windows)]
+fn install_overlay_hit_test(window: &tauri::WebviewWindow) {
+    use windows::Win32::UI::WindowsAndMessaging::{SetWindowLongPtrW, GWLP_WNDPROC};
+
+    let Ok(hwnd) = window.hwnd() else {
+        return;
+    };
+
+    let Ok(mut state) = overlay_hit_test_state().lock() else {
+        return;
+    };
+
+    if state.previous_wndproc != 0 {
+        return;
+    }
+
+    unsafe {
+        state.previous_wndproc =
+            SetWindowLongPtrW(hwnd, GWLP_WNDPROC, overlay_wnd_proc as *const () as isize);
+    }
+}
+
+#[cfg(not(windows))]
+fn install_overlay_hit_test(_window: &tauri::WebviewWindow) {}
+
+#[cfg(windows)]
+fn update_position_locked_state(locked: bool) {
+    if let Ok(mut state) = overlay_hit_test_state().lock() {
+        state.position_locked = locked;
+    }
+}
+
+#[cfg(not(windows))]
+fn update_position_locked_state(_locked: bool) {}
+
+#[cfg(windows)]
+fn update_clickable_rects(window: &Window, rects: Vec<ClickableRect>) {
+    let scale_factor = window.scale_factor().unwrap_or(1.0);
+
+    let physical_rects = rects
+        .into_iter()
+        .filter(|rect| rect.width > 0.0 && rect.height > 0.0)
+        .map(|rect| PhysicalClickableRect {
+            x: rect.x * scale_factor,
+            y: rect.y * scale_factor,
+            width: rect.width * scale_factor,
+            height: rect.height * scale_factor,
+        })
+        .collect::<Vec<_>>();
+
+    if let Ok(mut state) = overlay_hit_test_state().lock() {
+        state.clickable_rects = physical_rects;
+    }
+}
+
+#[cfg(not(windows))]
+fn update_clickable_rects(_window: &Window, _rects: Vec<ClickableRect>) {}
+
+#[cfg(windows)]
+unsafe extern "system" fn overlay_wnd_proc(
+    hwnd: windows::Win32::Foundation::HWND,
+    msg: u32,
+    wparam: windows::Win32::Foundation::WPARAM,
+    lparam: windows::Win32::Foundation::LPARAM,
+) -> windows::Win32::Foundation::LRESULT {
+    use windows::Win32::{
+        Foundation::LRESULT,
+        UI::WindowsAndMessaging::{
+            CallWindowProcW, DefWindowProcW, HTTRANSPARENT, WM_NCHITTEST, WNDPROC,
+        },
+    };
+
+    if msg == WM_NCHITTEST && should_pass_through_overlay(hwnd, lparam) {
+        return LRESULT(HTTRANSPARENT as isize);
+    }
+
+    let previous_wndproc = overlay_hit_test_state()
+        .lock()
+        .ok()
+        .map(|state| state.previous_wndproc)
+        .unwrap_or_default();
+
+    if previous_wndproc == 0 {
+        return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
+    }
+
+    let previous: WNDPROC = unsafe { std::mem::transmute(previous_wndproc) };
+    unsafe { CallWindowProcW(previous, hwnd, msg, wparam, lparam) }
+}
+
+#[cfg(windows)]
+fn should_pass_through_overlay(
+    hwnd: windows::Win32::Foundation::HWND,
+    lparam: windows::Win32::Foundation::LPARAM,
+) -> bool {
+    use windows::Win32::{Foundation::RECT, UI::WindowsAndMessaging::GetWindowRect};
+
+    let Ok(state) = overlay_hit_test_state().lock() else {
+        return false;
+    };
+
+    if !state.position_locked {
+        return false;
+    }
+
+    let screen_x = (lparam.0 & 0xffff) as i16 as i32;
+    let screen_y = ((lparam.0 >> 16) & 0xffff) as i16 as i32;
+    let mut window_rect = RECT::default();
+
+    if unsafe { GetWindowRect(hwnd, &mut window_rect) }.is_err() {
+        return false;
+    }
+
+    let local_x = (screen_x - window_rect.left) as f64;
+    let local_y = (screen_y - window_rect.top) as f64;
+    let over_clickable = state.clickable_rects.iter().any(|rect| {
+        local_x >= rect.x
+            && local_x <= rect.x + rect.width
+            && local_y >= rect.y
+            && local_y <= rect.y + rect.height
+    });
+
+    !over_clickable
 }
 
 fn install_diagnostics() {

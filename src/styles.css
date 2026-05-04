@@ -7,6 +7,7 @@
   --green: #74d87a;
   --shadow: rgba(0, 0, 0, 0.45);
   --bar-width-target: 1380px;
+  --details-height: 553px;
   color: var(--text);
   font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
   background:
@@ -69,12 +70,12 @@ button {
 
 .tracker-shell {
   position: fixed;
-  top: 8px;
-  left: 12px;
+  top: 0;
+  left: 0;
   display: inline-grid;
   grid-template-columns: 1fr;
-  width: min(var(--bar-width-target), calc(100vw - 24px));
-  max-width: calc(100vw - 24px);
+  width: min(var(--bar-width-target), 100vw);
+  max-width: 100vw;
   overflow: visible;
   z-index: 1;
   pointer-events: none;
@@ -86,7 +87,9 @@ button {
 
 .tracker-shell[data-position-locked="true"] button,
 .tracker-shell[data-position-locked="true"] input,
-.tracker-shell[data-position-locked="true"] .opacity-control {
+.tracker-shell[data-position-locked="true"] .opacity-control,
+.tracker-shell[data-position-locked="true"] .runs-scroll,
+.tracker-shell[data-position-locked="true"] .items-scroll {
   pointer-events: auto;
 }
 
@@ -317,13 +320,15 @@ button {
 
 .details-panel {
   position: absolute;
-  top: 35px;
+  top: 30px;
   left: 0;
   display: grid;
   grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   width: var(--bar-width, 100%);
   max-width: var(--bar-width, 100%);
+  height: var(--details-height);
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -373,17 +378,26 @@ button {
 .analytics-grid {
   display: grid;
   grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
   align-items: stretch;
+  height: 100%;
+  min-height: 0;
 }
 
 .chart-panel,
 .runs-panel {
   min-width: 0;
+  min-height: 0;
   padding: 10px 12px;
   border: 1px solid rgba(222, 178, 92, 0.12);
   border-radius: 8px;
   background: #0d0c0a;
+}
+
+.runs-panel {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .panel-head {
@@ -483,7 +497,7 @@ button {
 }
 
 .runs-scroll {
-  max-height: 300px;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
   scrollbar-color: rgba(231, 190, 100, 0.45) rgba(255, 255, 255, 0.04);
@@ -593,7 +607,10 @@ button {
 }
 
 .item-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-width: 0;
+  min-height: 0;
   padding: 10px 12px;
   border: 1px solid rgba(222, 178, 92, 0.12);
   border-radius: 8px;
@@ -658,7 +675,8 @@ button {
 }
 
 .items-scroll {
-  max-height: 430px;
+  grid-row: 3;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
   scrollbar-color: rgba(231, 190, 100, 0.45) rgba(255, 255, 255, 0.04);
@@ -672,31 +690,35 @@ button {
 }
 
 .item-table col.item-id-col {
-  width: 21%;
+  width: 20%;
 }
 
 .item-table col.item-qty-col {
-  width: 8%;
+  width: 7%;
 }
 
 .item-table col.item-state-col {
-  width: 18%;
+  width: 14%;
 }
 
 .item-table col.item-price-col {
-  width: 12%;
+  width: 11%;
+}
+
+.item-table col.item-updated-col {
+  width: 10%;
 }
 
 .item-table col.item-manual-col {
-  width: 21%;
+  width: 20%;
 }
 
 .item-table col.item-value-col {
-  width: 10%;
+  width: 9%;
 }
 
 .item-table col.item-action-col {
-  width: 10%;
+  width: 9%;
 }
 
 .item-table th,
@@ -729,8 +751,8 @@ button {
 .item-table td:first-child,
 .item-table th:nth-child(3),
 .item-table td:nth-child(3),
-.item-table th:nth-child(5),
-.item-table td:nth-child(5) {
+.item-table th:nth-child(6),
+.item-table td:nth-child(6) {
   text-align: left;
 }
 

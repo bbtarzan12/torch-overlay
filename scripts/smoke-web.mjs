@@ -56,6 +56,16 @@ try {
   await page.wait(700);
   await page.evaluate(`document.querySelector(".detail-toggle")?.click()`);
   await page.wait(150);
+  const runDetailRect = await page.evaluate(`(() => {
+    const detailRect = document.querySelector(".details-panel")?.getBoundingClientRect();
+
+    return detailRect ? {
+      x: Math.round(detailRect.x),
+      y: Math.round(detailRect.y),
+      width: Math.round(detailRect.width),
+      height: Math.round(detailRect.height)
+    } : null;
+  })()`);
   await page.evaluate(`(() => {
     const itemTab = [...document.querySelectorAll(".detail-tabs button")]
       .find((button) => button.textContent.includes("아이템 평가"));
@@ -67,9 +77,11 @@ try {
     const bar = document.querySelector(".tracker-bar");
     const fatal = document.querySelector(".fatal-error");
     const itemPanel = document.querySelector(".item-panel");
+    const itemsScroll = document.querySelector(".items-scroll");
     const itemRows = [...document.querySelectorAll(".item-table tbody tr")];
     const rect = bar?.getBoundingClientRect();
     const detailRect = document.querySelector(".details-panel")?.getBoundingClientRect();
+    const itemsScrollRect = itemsScroll?.getBoundingClientRect();
 
     return {
       title: document.title,
@@ -77,6 +89,8 @@ try {
       hasBar: Boolean(bar),
       hasFatalError: Boolean(fatal),
       hasItemPanel: Boolean(itemPanel),
+      hasItemsScroll: Boolean(itemsScroll),
+      itemsScrollOverflowY: itemsScroll ? getComputedStyle(itemsScroll).overflowY : "",
       itemRowCount: itemRows.length,
       fatalText: fatal?.textContent ?? "",
       barRect: rect ? {
@@ -90,6 +104,12 @@ try {
         y: Math.round(detailRect.y),
         width: Math.round(detailRect.width),
         height: Math.round(detailRect.height)
+      } : null,
+      itemsScrollRect: itemsScrollRect ? {
+        x: Math.round(itemsScrollRect.x),
+        y: Math.round(itemsScrollRect.y),
+        width: Math.round(itemsScrollRect.width),
+        height: Math.round(itemsScrollRect.height)
       } : null
     };
   })()`);
@@ -120,6 +140,21 @@ try {
     })}`);
   }
 
+  if (!runDetailRect || !result.detailRect || runDetailRect.height !== result.detailRect.height) {
+    failures.push(`detail panel height changed between tabs: ${JSON.stringify({
+      runDetailRect,
+      itemDetailRect: result.detailRect
+    })}`);
+  }
+
+  if (!result.hasItemsScroll || result.itemsScrollOverflowY !== "auto" || !result.itemsScrollRect?.height) {
+    failures.push(`item tab did not expose a scroll area: ${JSON.stringify({
+      hasItemsScroll: result.hasItemsScroll,
+      itemsScrollOverflowY: result.itemsScrollOverflowY,
+      itemsScrollRect: result.itemsScrollRect
+    })}`);
+  }
+
   if (!result.barRect || result.barRect.width < 1200 || result.barRect.height < 24) {
     failures.push(`unexpected bar rect: ${JSON.stringify(result.barRect)}`);
   }
@@ -140,7 +175,9 @@ try {
         screenshot: screenshotPath,
         title: result.title,
         barRect: result.barRect,
+        runDetailRect,
         detailRect: result.detailRect,
+        itemsScrollRect: result.itemsScrollRect,
         itemRowCount: result.itemRowCount
       },
       null,

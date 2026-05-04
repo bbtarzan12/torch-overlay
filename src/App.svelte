@@ -36,17 +36,22 @@
   let manualPrices: Record<number, string> = {};
   let itemActionError = "";
   let updateInfo: UpdateInfo = { state: "idle" };
+  let hasSnapshot = false;
+  let snapshotTotalEstimatedValue = 0;
+  let snapshotUnpricedItemCount = 0;
 
   let shellElement: HTMLElement;
   let barElement: HTMLElement;
   let detailsElement: HTMLElement;
 
   $: completedEstimatedValue = runs.reduce((sum, run) => sum + run.totalEstimatedValue, 0);
-  $: totalEstimatedValue = completedEstimatedValue + currentRun.totalEstimatedValue;
-  $: unpricedItemCount = runs.reduce(
+  $: fallbackTotalEstimatedValue = completedEstimatedValue + currentRun.totalEstimatedValue;
+  $: totalEstimatedValue = hasSnapshot ? snapshotTotalEstimatedValue : fallbackTotalEstimatedValue;
+  $: fallbackUnpricedItemCount = runs.reduce(
     (sum, run) => sum + run.unpricedItemCount,
     currentRun.unpricedItemCount
   );
+  $: unpricedItemCount = hasSnapshot ? snapshotUnpricedItemCount : fallbackUnpricedItemCount;
   $: totalSeconds = runs.reduce((sum, run) => sum + run.durationSeconds, 0);
   $: averageSeconds = runs.length > 0 ? totalSeconds / runs.length : 0;
   $: averageCrystal = runs.length > 0 ? completedEstimatedValue / runs.length : 0;
@@ -153,6 +158,9 @@
     currentRun = snapshot.currentRun;
     runs = snapshot.runs;
     items = snapshot.items;
+    hasSnapshot = true;
+    snapshotTotalEstimatedValue = snapshot.totalEstimatedValue;
+    snapshotUnpricedItemCount = snapshot.unpricedItemCount;
   }
 
   async function handleOpacityInput() {
@@ -163,7 +171,7 @@
     await tick();
 
     const controls = shellElement?.querySelectorAll<HTMLElement>(
-      "button, input, .opacity-control"
+      "button, input, .opacity-control, .runs-scroll, .items-scroll"
     );
 
     if (!controls) {
@@ -295,7 +303,10 @@
       return "-";
     }
 
-    return `${date.getHours().toString().padStart(2, "0")}:${date
+    return `${(date.getMonth() + 1).toString().padStart(2, "0")}/${date
+      .getDate()
+      .toString()
+      .padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date
       .getMinutes()
       .toString()
       .padStart(2, "0")}`;
@@ -346,7 +357,7 @@
       bottom = Math.max(bottom, detailsBounds.bottom);
     }
 
-    await setOverlayWindowSize(Math.ceil(right + 12), Math.ceil(bottom + 8));
+    await setOverlayWindowSize(Math.ceil(right), Math.ceil(bottom));
   }
 </script>
 
@@ -379,9 +390,7 @@
     <div class="segment current-run" data-tauri-drag-region={positionLocked ? undefined : ""}>
       <span class="label">런</span>
       <span class="value">
-        <span class="highlight">+{currentRun.crystal} 결정</span>
-        <span class="separator">·</span>
-        <span class="metric">+{formatNumber(currentRun.estimatedItemValue)} 추정</span>
+        <span class="highlight">+{formatNumber(currentRun.totalEstimatedValue)} 결정</span>
         <span class="separator">·</span>
         <span class="metric">{currentRate}/h</span>
       </span>
@@ -560,6 +569,7 @@
                 <col class="item-qty-col" />
                 <col class="item-state-col" />
                 <col class="item-price-col" />
+                <col class="item-updated-col" />
                 <col class="item-manual-col" />
                 <col class="item-value-col" />
                 <col class="item-action-col" />
@@ -570,6 +580,7 @@
                   <th>수량</th>
                   <th>상태</th>
                   <th>수집 가격</th>
+                  <th>갱신</th>
                   <th>수동 입력</th>
                   <th>평가액</th>
                   <th>설정</th>
@@ -588,11 +599,14 @@
                     <td>
                       <span class="source-pill" data-source={item.priceSource}>{priceSourceLabel(item)}</span>
                       {#if item.observationCount > 0}
-                        <span class="source-meta">{item.observationCount}회 · {formatObservedAt(item.observedAt)}</span>
+                        <span class="source-meta">{item.observationCount}회</span>
                       {/if}
                     </td>
                     <td class="gold">
-                      {item.priceInCrystal == null ? "-" : formatNumber(item.priceInCrystal)}
+                      {item.priceInCrystal == null ? "-" : formatNumber(item.priceInCrystal, 2)}
+                    </td>
+                    <td>
+                      {formatObservedAt(item.observedAt)}
                     </td>
                     <td>
                       {#if item.configBaseId === 100300}
@@ -604,7 +618,7 @@
                             min="0.01"
                             step="0.1"
                             inputmode="decimal"
-                            placeholder={item.priceInCrystal == null ? "결정" : formatNumber(item.priceInCrystal)}
+                            placeholder={item.priceInCrystal == null ? "결정" : formatNumber(item.priceInCrystal, 2)}
                             value={manualPrices[item.configBaseId] ?? ""}
                             oninput={(event) => handleManualPriceInput(item.configBaseId, event)}
                             aria-label={`ID ${item.configBaseId} 수동 가격`}
@@ -626,13 +640,14 @@
                   </tr>
                 {:else}
                   <tr>
-                    <td class="empty-cell" colspan="7">현재 필터에 해당하는 아이템이 없습니다.</td>
+                    <td class="empty-cell" colspan="8">현재 필터에 해당하는 아이템이 없습니다.</td>
                   </tr>
                 {/each}
               </tbody>
               <tfoot>
                 <tr>
                   <td>합계</td>
+                  <td></td>
                   <td></td>
                   <td></td>
                   <td></td>
