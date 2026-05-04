@@ -95,7 +95,7 @@ button {
 
 .tracker-bar {
   display: grid;
-  grid-template-columns: 22% 20% 29% 19% 10%;
+  grid-template-columns: 23% 17% 31% 19% 10%;
   align-items: center;
   height: 30px;
   width: 100%;
@@ -111,7 +111,7 @@ button {
 }
 
 .tracker-bar.has-update {
-  grid-template-columns: 20% 18% 25% 17% 10% 10%;
+  grid-template-columns: 20% 16% 28% 16% 10% 10%;
 }
 
 .segment {
@@ -121,7 +121,7 @@ button {
   gap: 6px;
   height: 100%;
   min-width: 0;
-  padding: 0 14px;
+  padding: 0 12px;
   border-right: 1px solid rgba(222, 178, 92, 0.14);
   white-space: nowrap;
 }
@@ -192,7 +192,7 @@ button {
 .current-run .value {
   display: inline-flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
 }
 
 .metric {

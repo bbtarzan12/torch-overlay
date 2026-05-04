@@ -37,7 +37,6 @@
   let itemActionError = "";
   let updateInfo: UpdateInfo = { state: "idle" };
   let hasSnapshot = false;
-  let snapshotTotalEstimatedValue = 0;
   let snapshotUnpricedItemCount = 0;
 
   let shellElement: HTMLElement;
@@ -45,14 +44,18 @@
   let detailsElement: HTMLElement;
 
   $: completedEstimatedValue = runs.reduce((sum, run) => sum + run.totalEstimatedValue, 0);
-  $: fallbackTotalEstimatedValue = completedEstimatedValue + currentRun.totalEstimatedValue;
-  $: totalEstimatedValue = hasSnapshot ? snapshotTotalEstimatedValue : fallbackTotalEstimatedValue;
   $: fallbackUnpricedItemCount = runs.reduce(
     (sum, run) => sum + run.unpricedItemCount,
     currentRun.unpricedItemCount
   );
   $: unpricedItemCount = hasSnapshot ? snapshotUnpricedItemCount : fallbackUnpricedItemCount;
   $: totalSeconds = runs.reduce((sum, run) => sum + run.durationSeconds, 0);
+  $: currentRunIsLastCompleted = isSameRunSummary(currentRun, runs[runs.length - 1]);
+  $: hasActiveRun = currentRun.mapNameKo !== "대기 중" && !currentRunIsLastCompleted;
+  $: sessionRunCount = runs.length + (hasActiveRun ? 1 : 0);
+  $: sessionSeconds = totalSeconds + (hasActiveRun ? currentRun.elapsedSeconds : 0);
+  $: sessionEstimatedValue = completedEstimatedValue + (hasActiveRun ? currentRun.totalEstimatedValue : 0);
+  $: sessionRate = sessionSeconds > 0 ? (sessionEstimatedValue / sessionSeconds) * 3600 : 0;
   $: averageSeconds = runs.length > 0 ? totalSeconds / runs.length : 0;
   $: averageCrystal = runs.length > 0 ? completedEstimatedValue / runs.length : 0;
   $: averageRate = totalSeconds > 0 ? (completedEstimatedValue / totalSeconds) * 3600 : 0;
@@ -159,7 +162,6 @@
     runs = snapshot.runs;
     items = snapshot.items;
     hasSnapshot = true;
-    snapshotTotalEstimatedValue = snapshot.totalEstimatedValue;
     snapshotUnpricedItemCount = snapshot.unpricedItemCount;
   }
 
@@ -312,6 +314,36 @@
       .padStart(2, "0")}`;
   }
 
+  function formatCompactNumber(value: number, digits = 1): string {
+    return value.toFixed(digits).replace(/\.0$/, "");
+  }
+
+  function formatSessionDuration(totalSeconds: number): string {
+    const safeSeconds = Math.max(0, Math.round(totalSeconds));
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+    const seconds = safeSeconds % 60;
+
+    if (hours <= 0) {
+      return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    }
+
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  function isSameRunSummary(current: CurrentRun, run: RunSummary | undefined): boolean {
+    if (!run) {
+      return false;
+    }
+
+    return (
+      current.mapNameKo === run.mapNameKo &&
+      current.difficulty === run.difficulty &&
+      current.elapsedSeconds === run.durationSeconds &&
+      Math.abs(current.totalEstimatedValue - run.totalEstimatedValue) < 0.001
+    );
+  }
+
   function formatUpdateStatus(info: UpdateInfo): string {
     if (info.state === "checking") {
       return "확인 중";
@@ -384,26 +416,26 @@
           <path d="M10.7 1.2 14.8 5.3 13.5 6.6 12.4 5.5 9.3 8.6l.4 2.7-.9.9-2.9-2.9-3.7 3.7-1-1 3.7-3.7-2.9-2.9.9-.9 2.7.4 3.1-3.1-1.1-1.1 1.3-1.3Z" />
         </svg>
       </button>
-      <span class="value">{currentRun.mapNameKo} {currentRun.difficulty} {formatDuration(currentRun.elapsedSeconds)}</span>
+      <span class="value">{currentRun.mapNameKo} {currentRun.difficulty} · {formatDuration(currentRun.elapsedSeconds)}</span>
     </div>
 
     <div class="segment current-run" data-tauri-drag-region={positionLocked ? undefined : ""}>
-      <span class="label">런</span>
       <span class="value">
-        <span class="highlight">+{formatNumber(currentRun.totalEstimatedValue)} 결정</span>
+        <span class="highlight">+{formatCompactNumber(currentRun.totalEstimatedValue)} 결정</span>
         <span class="separator">·</span>
         <span class="metric">{currentRate}/h</span>
       </span>
     </div>
 
     <div class="segment reset-stats" data-tauri-drag-region={positionLocked ? undefined : ""}>
-      <span class="label">누적</span>
       <span class="value">
-        <span class="highlight">{formatNumber(totalEstimatedValue)} 결정</span>
+        <span class="metric">{sessionRunCount}런</span>
         <span class="separator">·</span>
-        <span class="metric">평균 {formatNumber(averageRate)}/h</span>
+        <span class="metric">{formatSessionDuration(sessionSeconds)}</span>
         <span class="separator">·</span>
-        <span class="metric muted">미평가 {unpricedItemCount}</span>
+        <span class="highlight">{formatCompactNumber(sessionEstimatedValue)} 결정</span>
+        <span class="separator">·</span>
+        <span class="metric">{formatNumber(sessionRate)}/h</span>
       </span>
     </div>
 
