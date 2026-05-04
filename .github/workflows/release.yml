@@ -72,13 +72,17 @@ jobs:
             throw "Updater signature was not generated: $signaturePath"
           }
 
-          Copy-Item -LiteralPath $installer.FullName -Destination $distDir.FullName -Force
-          Copy-Item -LiteralPath $signaturePath -Destination $distDir.FullName -Force
+          $assetInstallerName = $installer.Name -replace "\s+", "."
+          $assetInstallerPath = Join-Path $distDir.FullName $assetInstallerName
+          $assetSignaturePath = "$assetInstallerPath.sig"
+
+          Copy-Item -LiteralPath $installer.FullName -Destination $assetInstallerPath -Force
+          Copy-Item -LiteralPath $signaturePath -Destination $assetSignaturePath -Force
 
           $tag = "v$env:APP_VERSION"
-          $encodedInstallerName = [uri]::EscapeDataString($installer.Name)
+          $encodedInstallerName = [uri]::EscapeDataString($assetInstallerName)
           $installerUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$tag/$encodedInstallerName"
-          $signature = (Get-Content -LiteralPath $signaturePath -Raw).Trim()
+          $signature = (Get-Content -LiteralPath $assetSignaturePath -Raw).Trim()
           $platform = [ordered]@{
             signature = $signature
             url = $installerUrl

@@ -101,8 +101,8 @@ release tag = v{version}
 
 ```text
 GitHub latest Release latest.json
-GitHub latest Release Torch Overlay_{version}_x64-setup.exe
-GitHub latest Release Torch Overlay_{version}_x64-setup.exe.sig
+GitHub latest Release Torch.Overlay_{version}_x64-setup.exe
+GitHub latest Release Torch.Overlay_{version}_x64-setup.exe.sig
 ```
 
 로컬에서는 `npm run verify`, `npm run smoke:web`, `npm run debug:tauri`, 로컬 설치본 확인까지 수행한다. 자동 업데이트 배포는 Release workflow 산출물로만 갱신한다.
