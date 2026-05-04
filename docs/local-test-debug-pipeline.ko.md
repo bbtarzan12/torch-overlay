@@ -100,7 +100,7 @@ npm run build:release:local
 productName = Torch Overlay Local
 identifier = kr.tli.torch-overlay.local
 createUpdaterArtifacts = false
-updater endpoint = http://127.0.0.1:9/torch-overlay-local/latest.json
+updater endpoint = https://127.0.0.1:9/torch-overlay-local/latest.json
 ```
 
 따라서 공개 릴리즈판 `Torch Overlay`와 설치 식별자가 다르고, GitHub Release용 updater artifact도 만들지 않는다.

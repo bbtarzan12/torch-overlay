@@ -39,7 +39,7 @@ $tauriOverride = @{
   plugins = @{
     updater = @{
       pubkey = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE4QTI3RUJDODg4NUQ2QTcKUldTbjFvV0l2SDZpR05ncmRrbTRzN2FINW1vTkxEeEw2NlE5bTJXaXJiYUlMR1lMOWRCUk4rL28K"
-      endpoints = @("http://127.0.0.1:9/torch-overlay-local/latest.json")
+      endpoints = @("https://127.0.0.1:9/torch-overlay-local/latest.json")
       windows = @{
         installMode = "passive"
       }
@@ -61,6 +61,35 @@ try {
 }
 finally {
   Remove-Item -LiteralPath $tempConfigDir.FullName -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+$releaseExe = "src-tauri\target\release\torch-overlay.exe"
+$diagnosticLog = Join-Path $env:LOCALAPPDATA "Torch Overlay Diagnostics\startup.log"
+
+Remove-Item -LiteralPath $diagnosticLog -Force -ErrorAction SilentlyContinue
+
+$process = Start-Process -FilePath $releaseExe -PassThru
+Start-Sleep -Seconds 3
+
+$runningProcess = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
+
+try {
+  if (-not $runningProcess) {
+    $diagnostic = if (Test-Path -LiteralPath $diagnosticLog) {
+      Get-Content -LiteralPath $diagnosticLog -Raw
+    } else {
+      "No diagnostic log was written."
+    }
+
+    throw "Local release exe exited before creating a stable app window.`n$diagnostic"
+  }
+
+  if ($runningProcess.MainWindowHandle -eq 0) {
+    throw "Local release exe is running but did not create a main window handle."
+  }
+}
+finally {
+  Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
 }
 
 $bundleDir = "src-tauri\target\release\bundle\nsis"
