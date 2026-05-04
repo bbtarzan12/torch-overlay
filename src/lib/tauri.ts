@@ -22,6 +22,28 @@ export async function resetTrackerSession(): Promise<TrackerSnapshot | null> {
   return invoke<TrackerSnapshot>("reset_tracker_session", {});
 }
 
+export async function setManualItemPrice(
+  configBaseId: number,
+  priceInCrystal: number
+): Promise<TrackerSnapshot | null> {
+  if (!isTauriRuntime()) {
+    return null;
+  }
+
+  return invoke<TrackerSnapshot>("set_manual_item_price", { configBaseId, priceInCrystal });
+}
+
+export async function setItemIgnored(
+  configBaseId: number,
+  ignored: boolean
+): Promise<TrackerSnapshot | null> {
+  if (!isTauriRuntime()) {
+    return null;
+  }
+
+  return invoke<TrackerSnapshot>("set_item_ignored", { configBaseId, ignored });
+}
+
 export async function setPositionLocked(locked: boolean): Promise<void> {
   if (!isTauriRuntime()) {
     return;

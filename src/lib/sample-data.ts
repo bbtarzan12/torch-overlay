@@ -1,4 +1,4 @@
-import type { CurrentRun, RunSummary } from "./types";
+import type { CurrentRun, ItemValuationRow, RunSummary } from "./types";
 
 export const sampleCurrentRun: CurrentRun = {
   mapNameKo: "종식의 벽",
@@ -26,6 +26,14 @@ export const sampleRuns: RunSummary[] = [
   makeRun(12, "축원의 성전", "6단계", 11 * 60 + 48, 8, 0.6, 4, 6)
 ];
 
+export const sampleItems: ItemValuationRow[] = [
+  makeItem(100300, "최초의 불꽃 결정", 136, "fixed", 1, 136, 0, false),
+  makeItem(122931, null, 3, "manual", 12.5, 37.5, 1, false),
+  makeItem(884102, null, 1, "fresh", 28, 28, 4, false),
+  makeItem(772210, null, 2, "unpriced", undefined, 0, 0, false),
+  makeItem(310044, null, 5, "ignored", undefined, 0, 0, true)
+];
+
 function makeRun(
   id: number,
   mapNameKo: string,
@@ -46,5 +54,29 @@ function makeRun(
     totalEstimatedValue: crystal + estimatedItemValue,
     unpricedItemCount,
     itemCount
+  };
+}
+
+function makeItem(
+  configBaseId: number,
+  itemNameKo: string | null,
+  quantity: number,
+  priceSource: string,
+  priceInCrystal: number | undefined,
+  valueInCrystal: number,
+  observationCount: number,
+  ignored: boolean
+): ItemValuationRow {
+  return {
+    configBaseId,
+    itemNameKo,
+    quantity,
+    ignored,
+    priceInCrystal,
+    priceSource,
+    observedAt: priceInCrystal ? new Date().toISOString() : undefined,
+    observationCount,
+    valueInCrystal,
+    unpriced: !ignored && priceInCrystal === undefined
   };
 }

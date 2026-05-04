@@ -2,7 +2,7 @@ use crate::db;
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs::File,
     io::{Read, Seek, SeekFrom},
     path::PathBuf,
@@ -49,6 +49,21 @@ pub struct LootSummary {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ItemValuationRow {
+    pub config_base_id: i64,
+    pub item_name_ko: Option<String>,
+    pub quantity: f64,
+    pub ignored: bool,
+    pub price_in_crystal: Option<f64>,
+    pub price_source: String,
+    pub observed_at: Option<String>,
+    pub observation_count: i64,
+    pub value_in_crystal: f64,
+    pub unpriced: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TrackerSnapshot {
     pub current_run: CurrentRun,
     pub runs: Vec<RunSummary>,
@@ -60,6 +75,7 @@ pub struct TrackerSnapshot {
     pub unpriced_item_count: i64,
     pub known_price_count: i64,
     pub recent_loot: Vec<LootSummary>,
+    pub items: Vec<ItemValuationRow>,
 }
 
 #[derive(Debug, Clone)]
@@ -78,6 +94,14 @@ struct RunState {
 struct LootEvent {
     config_base_id: i64,
     quantity: f64,
+}
+
+#[derive(Debug, Clone)]
+struct PriceInfo {
+    price_in_crystal: f64,
+    confidence: String,
+    observed_at: Option<String>,
+    observation_count: i64,
 }
 
 #[derive(Debug, Default)]
@@ -128,7 +152,9 @@ pub struct LogTracker {
     pending_level_uid: Option<String>,
     pending_level_id: Option<String>,
     inventory_totals: BTreeMap<String, i64>,
-    price_cache: BTreeMap<i64, f64>,
+    price_cache: BTreeMap<i64, PriceInfo>,
+    item_names: BTreeMap<i64, String>,
+    ignored_item_ids: BTreeSet<i64>,
     active_price_send: Option<MessageBlock>,
     active_price_recv: Option<MessageBlock>,
     pending_price_requests: BTreeMap<String, PriceRequest>,
@@ -151,13 +177,15 @@ impl LogTracker {
             pending_level_id: None,
             inventory_totals: BTreeMap::new(),
             price_cache: BTreeMap::new(),
+            item_names: BTreeMap::new(),
+            ignored_item_ids: BTreeSet::new(),
             active_price_send: None,
             active_price_recv: None,
             pending_price_requests: BTreeMap::new(),
             next_run_id: 1,
         };
 
-        let _ = tracker.reload_price_cache();
+        let _ = tracker.reload_valuation_settings();
         let _ = tracker.bootstrap_inventory_baseline();
         tracker
     }
@@ -177,7 +205,7 @@ impl LogTracker {
         self.active_price_recv = None;
         self.pending_price_requests.clear();
         self.next_run_id = 1;
-        self.reload_price_cache()?;
+        self.reload_valuation_settings()?;
         self.bootstrap_inventory_baseline()?;
         Ok(())
     }
@@ -187,10 +215,82 @@ impl LogTracker {
         Ok(self.build_snapshot())
     }
 
+    pub fn set_manual_item_price(
+        &mut self,
+        config_base_id: i64,
+        price_in_crystal: f64,
+    ) -> Result<TrackerSnapshot, String> {
+        if config_base_id == CRYSTAL_BASE_ID {
+            return Err("crystal price is fixed".to_string());
+        }
+
+        if !price_in_crystal.is_finite() || price_in_crystal <= 0.0 {
+            return Err("price_in_crystal must be a positive finite number".to_string());
+        }
+
+        self.poll()?;
+        db::upsert_manual_price_estimate(&self.db_path, config_base_id, price_in_crystal)
+            .map_err(|error| error.to_string())?;
+        self.reload_price_cache()?;
+        Ok(self.build_snapshot())
+    }
+
+    pub fn set_item_ignored(
+        &mut self,
+        config_base_id: i64,
+        ignored: bool,
+    ) -> Result<TrackerSnapshot, String> {
+        if config_base_id == CRYSTAL_BASE_ID && ignored {
+            return Err("crystal cannot be ignored".to_string());
+        }
+
+        self.poll()?;
+        db::set_item_ignored(&self.db_path, config_base_id, ignored)
+            .map_err(|error| error.to_string())?;
+
+        if ignored {
+            self.ignored_item_ids.insert(config_base_id);
+        } else {
+            self.ignored_item_ids.remove(&config_base_id);
+        }
+
+        Ok(self.build_snapshot())
+    }
+
+    fn reload_valuation_settings(&mut self) -> Result<(), String> {
+        self.reload_price_cache()?;
+        self.item_names =
+            db::load_item_display_names(&self.db_path).map_err(|error| error.to_string())?;
+        self.ignored_item_ids =
+            db::load_ignored_item_ids(&self.db_path).map_err(|error| error.to_string())?;
+        Ok(())
+    }
+
     fn reload_price_cache(&mut self) -> Result<(), String> {
-        self.price_cache =
-            db::load_price_estimates(&self.db_path).map_err(|error| error.to_string())?;
-        self.price_cache.insert(CRYSTAL_BASE_ID, 1.0);
+        self.price_cache = db::load_price_estimate_records(&self.db_path)
+            .map_err(|error| error.to_string())?
+            .into_iter()
+            .map(|(config_base_id, record)| {
+                (
+                    config_base_id,
+                    PriceInfo {
+                        price_in_crystal: record.price_in_crystal,
+                        confidence: record.confidence,
+                        observed_at: Some(record.observed_at),
+                        observation_count: record.observation_count,
+                    },
+                )
+            })
+            .collect();
+        self.price_cache.insert(
+            CRYSTAL_BASE_ID,
+            PriceInfo {
+                price_in_crystal: 1.0,
+                confidence: "fixed".to_string(),
+                observed_at: None,
+                observation_count: 0,
+            },
+        );
         Ok(())
     }
 
@@ -504,7 +604,7 @@ impl LogTracker {
         )
         .map_err(|error| error.to_string())?;
 
-        self.price_cache.insert(config_base_id, selected_price);
+        self.reload_price_cache()?;
         Ok(())
     }
 
@@ -521,7 +621,7 @@ impl LogTracker {
                 item_count: 0,
             },
             |run| {
-                let valuation = value_loot(&run.loot, &self.price_cache);
+                let valuation = value_loot(&run.loot, &self.price_cache, &self.ignored_item_ids);
                 CurrentRun {
                     map_name_ko: run.map_name_ko.clone(),
                     difficulty: run.difficulty.clone(),
@@ -543,7 +643,7 @@ impl LogTracker {
         let mut completed_seconds = 0;
 
         for run in &self.completed_runs {
-            let valuation = value_loot(&run.loot, &self.price_cache);
+            let valuation = value_loot(&run.loot, &self.price_cache, &self.ignored_item_ids);
             let ended_at = run.ended_at.unwrap_or(run.last_seen_at);
             let duration = duration_seconds(run.started_at, ended_at);
 
@@ -577,6 +677,7 @@ impl LogTracker {
             total_estimated_value / runs.len() as f64
         };
         let recent_loot = self.recent_loot();
+        let items = self.item_valuation_rows();
 
         TrackerSnapshot {
             current_run,
@@ -589,6 +690,7 @@ impl LogTracker {
             unpriced_item_count,
             known_price_count: self.price_cache.len() as i64,
             recent_loot,
+            items,
         }
     }
 
@@ -602,7 +704,11 @@ impl LogTracker {
             .rev()
         {
             for item in run.loot.iter().rev() {
-                loot.push(value_single_loot(item, &self.price_cache));
+                loot.push(value_single_loot(
+                    item,
+                    &self.price_cache,
+                    &self.ignored_item_ids,
+                ));
                 if loot.len() >= 12 {
                     return loot;
                 }
@@ -610,6 +716,44 @@ impl LogTracker {
         }
 
         loot
+    }
+
+    fn item_valuation_rows(&self) -> Vec<ItemValuationRow> {
+        let mut quantities = BTreeMap::<i64, f64>::new();
+
+        for run in self.completed_runs.iter().chain(self.current_run.iter()) {
+            for item in &run.loot {
+                *quantities.entry(item.config_base_id).or_default() += item.quantity;
+            }
+        }
+
+        let mut rows = quantities
+            .into_iter()
+            .map(|(config_base_id, quantity)| {
+                item_valuation_row(
+                    config_base_id,
+                    quantity,
+                    &self.price_cache,
+                    &self.item_names,
+                    &self.ignored_item_ids,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        rows.sort_by(|left, right| {
+            left.ignored
+                .cmp(&right.ignored)
+                .then_with(|| left.unpriced.cmp(&right.unpriced))
+                .then_with(|| {
+                    right
+                        .value_in_crystal
+                        .partial_cmp(&left.value_in_crystal)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .then_with(|| left.config_base_id.cmp(&right.config_base_id))
+        });
+
+        rows
     }
 }
 
@@ -622,7 +766,11 @@ struct LootValuation {
     item_count: i64,
 }
 
-fn value_loot(loot: &[LootEvent], price_cache: &BTreeMap<i64, f64>) -> LootValuation {
+fn value_loot(
+    loot: &[LootEvent],
+    price_cache: &BTreeMap<i64, PriceInfo>,
+    ignored_item_ids: &BTreeSet<i64>,
+) -> LootValuation {
     let mut crystal = 0.0;
     let mut estimated_item_value = 0.0;
     let mut unpriced_item_count = 0;
@@ -633,8 +781,12 @@ fn value_loot(loot: &[LootEvent], price_cache: &BTreeMap<i64, f64>) -> LootValua
             continue;
         }
 
+        if ignored_item_ids.contains(&item.config_base_id) {
+            continue;
+        }
+
         if let Some(price) = price_cache.get(&item.config_base_id) {
-            estimated_item_value += item.quantity * price;
+            estimated_item_value += item.quantity * price.price_in_crystal;
         } else {
             unpriced_item_count += 1;
         }
@@ -649,11 +801,19 @@ fn value_loot(loot: &[LootEvent], price_cache: &BTreeMap<i64, f64>) -> LootValua
     }
 }
 
-fn value_single_loot(item: &LootEvent, price_cache: &BTreeMap<i64, f64>) -> LootSummary {
+fn value_single_loot(
+    item: &LootEvent,
+    price_cache: &BTreeMap<i64, PriceInfo>,
+    ignored_item_ids: &BTreeSet<i64>,
+) -> LootSummary {
     let price_in_crystal = if item.config_base_id == CRYSTAL_BASE_ID {
         Some(1.0)
+    } else if ignored_item_ids.contains(&item.config_base_id) {
+        None
     } else {
-        price_cache.get(&item.config_base_id).copied()
+        price_cache
+            .get(&item.config_base_id)
+            .map(|price| price.price_in_crystal)
     };
 
     LootSummary {
@@ -661,6 +821,47 @@ fn value_single_loot(item: &LootEvent, price_cache: &BTreeMap<i64, f64>) -> Loot
         quantity: item.quantity,
         price_in_crystal,
         value_in_crystal: price_in_crystal.map_or(0.0, |price| price * item.quantity),
+    }
+}
+
+fn item_valuation_row(
+    config_base_id: i64,
+    quantity: f64,
+    price_cache: &BTreeMap<i64, PriceInfo>,
+    item_names: &BTreeMap<i64, String>,
+    ignored_item_ids: &BTreeSet<i64>,
+) -> ItemValuationRow {
+    let ignored = ignored_item_ids.contains(&config_base_id);
+    let price = price_cache.get(&config_base_id);
+    let price_in_crystal = price.map(|price| price.price_in_crystal);
+    let unpriced = !ignored && price_in_crystal.is_none();
+    let value_in_crystal = if ignored {
+        0.0
+    } else {
+        price_in_crystal.map_or(0.0, |price| price * quantity)
+    };
+
+    ItemValuationRow {
+        config_base_id,
+        item_name_ko: if config_base_id == CRYSTAL_BASE_ID {
+            Some("최초의 불꽃 결정".to_string())
+        } else {
+            item_names.get(&config_base_id).cloned()
+        },
+        quantity,
+        ignored,
+        price_in_crystal,
+        price_source: if ignored {
+            "ignored".to_string()
+        } else {
+            price
+                .map(|price| price.confidence.clone())
+                .unwrap_or_else(|| "unpriced".to_string())
+        },
+        observed_at: price.and_then(|price| price.observed_at.clone()),
+        observation_count: price.map_or(0, |price| price.observation_count),
+        value_in_crystal,
+        unpriced,
     }
 }
 

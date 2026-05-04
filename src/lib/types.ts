@@ -1,4 +1,6 @@
 export type ChartMode = "rate" | "cumulative";
+export type DetailTab = "runs" | "items";
+export type ItemFilter = "all" | "priced" | "unpriced" | "ignored";
 export type UpdateState =
   | "idle"
   | "checking"
@@ -35,8 +37,21 @@ export interface CurrentRun {
 export interface LootSummary {
   configBaseId: number;
   quantity: number;
-  priceInCrystal?: number;
+  priceInCrystal?: number | null;
   valueInCrystal: number;
+}
+
+export interface ItemValuationRow {
+  configBaseId: number;
+  itemNameKo?: string | null;
+  quantity: number;
+  ignored: boolean;
+  priceInCrystal?: number | null;
+  priceSource: string;
+  observedAt?: string | null;
+  observationCount: number;
+  valueInCrystal: number;
+  unpriced: boolean;
 }
 
 export interface TrackerSnapshot {
@@ -50,6 +65,7 @@ export interface TrackerSnapshot {
   unpricedItemCount: number;
   knownPriceCount: number;
   recentLoot: LootSummary[];
+  items: ItemValuationRow[];
 }
 
 export interface UpdateInfo {

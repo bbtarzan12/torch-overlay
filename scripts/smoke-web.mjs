@@ -54,23 +54,42 @@ try {
   page.onRuntimeException((message) => errors.push(message));
   await page.navigate(appUrl);
   await page.wait(700);
+  await page.evaluate(`document.querySelector(".detail-toggle")?.click()`);
+  await page.wait(150);
+  await page.evaluate(`(() => {
+    const itemTab = [...document.querySelectorAll(".detail-tabs button")]
+      .find((button) => button.textContent.includes("아이템 평가"));
+    itemTab?.click();
+  })()`);
+  await page.wait(150);
 
   const result = await page.evaluate(`(() => {
     const bar = document.querySelector(".tracker-bar");
     const fatal = document.querySelector(".fatal-error");
+    const itemPanel = document.querySelector(".item-panel");
+    const itemRows = [...document.querySelectorAll(".item-table tbody tr")];
     const rect = bar?.getBoundingClientRect();
+    const detailRect = document.querySelector(".details-panel")?.getBoundingClientRect();
 
     return {
       title: document.title,
       bodyText: document.body.innerText,
       hasBar: Boolean(bar),
       hasFatalError: Boolean(fatal),
+      hasItemPanel: Boolean(itemPanel),
+      itemRowCount: itemRows.length,
       fatalText: fatal?.textContent ?? "",
       barRect: rect ? {
         x: Math.round(rect.x),
         y: Math.round(rect.y),
         width: Math.round(rect.width),
         height: Math.round(rect.height)
+      } : null,
+      detailRect: detailRect ? {
+        x: Math.round(detailRect.x),
+        y: Math.round(detailRect.y),
+        width: Math.round(detailRect.width),
+        height: Math.round(detailRect.height)
       } : null
     };
   })()`);
@@ -93,6 +112,14 @@ try {
     failures.push("expected Korean crystal text was not rendered");
   }
 
+  if (!result.hasItemPanel || result.itemRowCount < 1) {
+    failures.push(`item valuation tab was not rendered: ${JSON.stringify({
+      hasItemPanel: result.hasItemPanel,
+      itemRowCount: result.itemRowCount,
+      detailRect: result.detailRect
+    })}`);
+  }
+
   if (!result.barRect || result.barRect.width < 1200 || result.barRect.height < 24) {
     failures.push(`unexpected bar rect: ${JSON.stringify(result.barRect)}`);
   }
@@ -112,7 +139,9 @@ try {
         url: appUrl,
         screenshot: screenshotPath,
         title: result.title,
-        barRect: result.barRect
+        barRect: result.barRect,
+        detailRect: result.detailRect,
+        itemRowCount: result.itemRowCount
       },
       null,
       2

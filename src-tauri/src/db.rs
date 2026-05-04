@@ -1,6 +1,9 @@
 use chrono::{SecondsFormat, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
-use std::path::PathBuf;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+};
 use tauri::{AppHandle, Manager};
 use thiserror::Error;
 
@@ -12,6 +15,15 @@ pub enum DbError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Sql(#[from] rusqlite::Error),
+}
+
+#[derive(Debug, Clone)]
+pub struct PriceEstimateRecord {
+    pub config_base_id: i64,
+    pub price_in_crystal: f64,
+    pub confidence: String,
+    pub observed_at: String,
+    pub observation_count: i64,
 }
 
 pub fn path(app: &AppHandle) -> Result<PathBuf, DbError> {
@@ -131,6 +143,11 @@ pub fn init(app: &AppHandle) -> Result<(), DbError> {
       estimator_version INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS item_valuation_ignores (
+      config_base_id INTEGER PRIMARY KEY,
+      ignored_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_loot_events_run ON loot_events(run_id);
     CREATE INDEX IF NOT EXISTS idx_loot_events_base ON loot_events(config_base_id);
     CREATE INDEX IF NOT EXISTS idx_loot_events_market_key ON loot_events(market_key_id);
@@ -149,28 +166,80 @@ pub fn open(db_path: &PathBuf) -> Result<Connection, DbError> {
     Ok(Connection::open(db_path)?)
 }
 
-pub fn load_price_estimates(
+pub fn load_price_estimate_records(
     db_path: &PathBuf,
-) -> Result<std::collections::BTreeMap<i64, f64>, DbError> {
+) -> Result<BTreeMap<i64, PriceEstimateRecord>, DbError> {
     let connection = open(db_path)?;
     let mut statement = connection.prepare(
         r#"
-        SELECT mk.config_base_id, pe.price_in_crystal
+        SELECT
+          mk.config_base_id,
+          pe.price_in_crystal,
+          pe.confidence,
+          pe.observed_at,
+          COUNT(po.id) AS observation_count
         FROM price_estimates pe
         JOIN market_keys mk ON mk.id = pe.market_key_id
+        LEFT JOIN price_observations po ON po.market_key_id = pe.market_key_id
         WHERE mk.config_base_id IS NOT NULL
+        GROUP BY mk.config_base_id, pe.price_in_crystal, pe.confidence, pe.observed_at
         "#,
     )?;
 
-    let rows = statement.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?)))?;
+    let rows = statement.query_map([], |row| {
+        Ok(PriceEstimateRecord {
+            config_base_id: row.get(0)?,
+            price_in_crystal: row.get(1)?,
+            confidence: row.get(2)?,
+            observed_at: row.get(3)?,
+            observation_count: row.get(4)?,
+        })
+    })?;
 
-    let mut prices = std::collections::BTreeMap::new();
+    let mut prices = BTreeMap::new();
     for row in rows {
-        let (config_base_id, price) = row?;
-        prices.insert(config_base_id, price);
+        let record = row?;
+        prices.insert(record.config_base_id, record);
     }
 
     Ok(prices)
+}
+
+pub fn load_ignored_item_ids(db_path: &PathBuf) -> Result<BTreeSet<i64>, DbError> {
+    let connection = open(db_path)?;
+    let mut statement = connection.prepare("SELECT config_base_id FROM item_valuation_ignores")?;
+    let rows = statement.query_map([], |row| row.get::<_, i64>(0))?;
+
+    let mut ids = BTreeSet::new();
+    for row in rows {
+        ids.insert(row?);
+    }
+
+    Ok(ids)
+}
+
+pub fn load_item_display_names(db_path: &PathBuf) -> Result<BTreeMap<i64, String>, DbError> {
+    let connection = open(db_path)?;
+    let mut statement = connection.prepare(
+        r#"
+        SELECT config_base_id, display_name_ko
+        FROM market_keys
+        WHERE config_base_id IS NOT NULL
+          AND display_name_ko IS NOT NULL
+          AND display_name_ko != ''
+        "#,
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+    })?;
+
+    let mut names = BTreeMap::new();
+    for row in rows {
+        let (config_base_id, display_name_ko) = row?;
+        names.insert(config_base_id, display_name_ko);
+    }
+
+    Ok(names)
 }
 
 pub fn insert_run(
@@ -306,6 +375,76 @@ pub fn upsert_price_estimate(
         "#,
         params![market_key_id, price_in_crystal, observation_id, now],
     )?;
+
+    Ok(())
+}
+
+pub fn upsert_manual_price_estimate(
+    db_path: &PathBuf,
+    config_base_id: i64,
+    price_in_crystal: f64,
+) -> Result<(), DbError> {
+    let connection = open(db_path)?;
+    let market_key_id = ensure_market_key(&connection, config_base_id, None)?;
+    let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let unit_prices_json = format!("[{price_in_crystal}]");
+
+    connection.execute(
+        r#"
+        INSERT INTO price_observations
+          (market_key_id, observed_at, syn_id, currency_base_id, sample_count, unit_prices_json,
+           min_price, p10_price, median_price, selected_price, estimator_version, raw_request, raw_response)
+        VALUES
+          (?1, ?2, NULL, 100300, 1, ?3, ?4, ?4, ?4, ?4, 1, 'manual', 'manual')
+        "#,
+        params![market_key_id, now, unit_prices_json, price_in_crystal],
+    )?;
+    let observation_id = connection.last_insert_rowid();
+
+    connection.execute(
+        r#"
+        INSERT INTO price_estimates
+          (market_key_id, price_in_crystal, source_observation_id, confidence,
+           observed_at, expires_at, estimator_version)
+        VALUES
+          (?1, ?2, ?3, 'manual', ?4, NULL, 1)
+        ON CONFLICT(market_key_id) DO UPDATE SET
+          price_in_crystal = excluded.price_in_crystal,
+          source_observation_id = excluded.source_observation_id,
+          confidence = excluded.confidence,
+          observed_at = excluded.observed_at,
+          expires_at = excluded.expires_at,
+          estimator_version = excluded.estimator_version
+        "#,
+        params![market_key_id, price_in_crystal, observation_id, now],
+    )?;
+
+    Ok(())
+}
+
+pub fn set_item_ignored(
+    db_path: &PathBuf,
+    config_base_id: i64,
+    ignored: bool,
+) -> Result<(), DbError> {
+    let connection = open(db_path)?;
+
+    if ignored {
+        let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        connection.execute(
+            r#"
+            INSERT INTO item_valuation_ignores (config_base_id, ignored_at)
+            VALUES (?1, ?2)
+            ON CONFLICT(config_base_id) DO UPDATE SET ignored_at = excluded.ignored_at
+            "#,
+            params![config_base_id, now],
+        )?;
+    } else {
+        connection.execute(
+            "DELETE FROM item_valuation_ignores WHERE config_base_id = ?1",
+            params![config_base_id],
+        )?;
+    }
 
     Ok(())
 }

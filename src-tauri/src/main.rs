@@ -78,6 +78,32 @@ fn reset_tracker_session(state: State<AppState>) -> Result<TrackerSnapshot, Stri
     tracker.snapshot()
 }
 
+#[tauri::command]
+fn set_manual_item_price(
+    state: State<AppState>,
+    config_base_id: i64,
+    price_in_crystal: f64,
+) -> Result<TrackerSnapshot, String> {
+    let mut tracker = state
+        .tracker
+        .lock()
+        .map_err(|error| format!("tracker lock poisoned: {error}"))?;
+    tracker.set_manual_item_price(config_base_id, price_in_crystal)
+}
+
+#[tauri::command]
+fn set_item_ignored(
+    state: State<AppState>,
+    config_base_id: i64,
+    ignored: bool,
+) -> Result<TrackerSnapshot, String> {
+    let mut tracker = state
+        .tracker
+        .lock()
+        .map_err(|error| format!("tracker lock poisoned: {error}"))?;
+    tracker.set_item_ignored(config_base_id, ignored)
+}
+
 fn default_log_path() -> String {
     r"D:\SteamLibrary\steamapps\common\Torchlight Infinite\UE_game\TorchLight\Saved\Logs\UE_game.log"
     .to_string()
@@ -117,6 +143,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             tracker_snapshot,
             reset_tracker_session,
+            set_manual_item_price,
+            set_item_ignored,
             set_position_locked,
             set_clickable_rects,
             set_overlay_window_size,
