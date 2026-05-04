@@ -175,24 +175,22 @@ pub fn load_price_estimates(
 
 pub fn insert_run(
     db_path: &PathBuf,
-    id: i64,
     started_at: &str,
     map_code: &str,
     map_name_ko: &str,
     difficulty: &str,
     area_lv: Option<i64>,
     level_uid: Option<&str>,
-) -> Result<(), DbError> {
+) -> Result<i64, DbError> {
     let connection = open(db_path)?;
     connection.execute(
         r#"
-        INSERT OR REPLACE INTO runs
-          (id, started_at, ended_at, map_code, map_name_ko, difficulty, area_lv, level_uid, status)
+        INSERT INTO runs
+          (started_at, ended_at, map_code, map_name_ko, difficulty, area_lv, level_uid, status)
         VALUES
-          (?1, ?2, NULL, ?3, ?4, ?5, ?6, ?7, 'open')
+          (?1, NULL, ?2, ?3, ?4, ?5, ?6, 'open')
         "#,
         params![
-            id,
             started_at,
             map_code,
             map_name_ko,
@@ -202,7 +200,7 @@ pub fn insert_run(
         ],
     )?;
 
-    Ok(())
+    Ok(connection.last_insert_rowid())
 }
 
 pub fn close_run(db_path: &PathBuf, id: i64, ended_at: &str) -> Result<(), DbError> {
