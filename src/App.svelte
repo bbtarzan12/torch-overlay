@@ -5,6 +5,7 @@
   import { sampleCurrentRun, sampleItems, sampleRuns } from "./lib/sample-data";
   import {
     checkForUpdate,
+    installAvailableUpdate,
     loadTrackerSnapshot,
     resetTrackerSession,
     setClickableRects,
@@ -139,8 +140,18 @@
   }
 
   async function handleUpdateClick() {
+    if (updateInfo.state === "available") {
+      updateInfo = { ...updateInfo, state: "downloading", progress: 0 };
+      updateInfo = await installAvailableUpdate((info) => {
+        updateInfo = info;
+      });
+      await syncOverlayLayout();
+      return;
+    }
+
     updateInfo = { state: "checking" };
     updateInfo = await checkForUpdate();
+    await syncOverlayLayout();
   }
 
   async function resetSession() {
@@ -391,9 +402,17 @@
       </label>
 
       {#if updateInfo.state === "available"}
-        <button class="update-button" type="button" onclick={handleUpdateClick}>업데이트</button>
+        <button class="update-button" type="button" onclick={handleUpdateClick}>
+          업데이트 {updateInfo.version ?? ""}
+        </button>
       {:else if updateInfo.state === "checking"}
         <span class="update-status">확인중</span>
+      {:else if updateInfo.state === "downloading"}
+        <span class="update-status">다운로드 {Math.round(updateInfo.progress ?? 0)}%</span>
+      {:else if updateInfo.state === "installing"}
+        <span class="update-status">설치중</span>
+      {:else if updateInfo.state === "error"}
+        <button class="update-button update-error" type="button" title={updateInfo.message} onclick={handleUpdateClick}>업데이트 오류</button>
       {/if}
     </div>
 

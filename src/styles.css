@@ -259,6 +259,11 @@ button {
   cursor: pointer;
 }
 
+.update-error {
+  color: #ffb29f;
+  background: rgba(232, 106, 82, 0.10);
+}
+
 .tracker-shell[data-position-locked="false"] .status,
 .tracker-shell[data-position-locked="false"] .current-run,
 .tracker-shell[data-position-locked="false"] .reset-stats {
