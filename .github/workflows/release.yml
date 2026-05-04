@@ -1,19 +1,13 @@
-name: Beta
+name: Release
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   workflow_dispatch:
-    inputs:
-      base_version:
-        description: "Base semver to build from. Empty means package.json version."
-        required: false
-        type: string
-        default: ""
 
 jobs:
-  beta:
+  release:
     permissions:
       contents: write
     runs-on: windows-latest
@@ -39,38 +33,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Set beta version
+      - name: Read app version
         shell: pwsh
         run: |
-          $packagePath = "package.json"
-          $tauriPath = "src-tauri/tauri.conf.json"
-          $cargoPath = "src-tauri/Cargo.toml"
-          $baseVersion = "${{ inputs.base_version }}"
+          $package = Get-Content -Raw -LiteralPath "package.json" | ConvertFrom-Json
+          $version = [string]$package.version
 
-          $package = Get-Content -Raw -LiteralPath $packagePath | ConvertFrom-Json
-          if ([string]::IsNullOrWhiteSpace($baseVersion)) {
-            $baseVersion = [string]$package.version
+          if ($version -notmatch "^\d+\.\d+\.\d+$") {
+            throw "Release version must be stable semver major.minor.patch: $version"
           }
-
-          if ($baseVersion -notmatch "^(\d+)\.(\d+)\.(\d+)") {
-            throw "base_version must start with major.minor.patch: $baseVersion"
-          }
-
-          $major = [int]$Matches[1]
-          $minor = [int]$Matches[2]
-          $patch = [int]$Matches[3] + 1
-          $version = "$major.$minor.$patch-beta.$env:GITHUB_RUN_NUMBER"
-
-          $package.version = $version
-          $package | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $packagePath -Encoding UTF8
-
-          $tauri = Get-Content -Raw -LiteralPath $tauriPath | ConvertFrom-Json
-          $tauri.version = $version
-          $tauri | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $tauriPath -Encoding UTF8
-
-          $cargo = Get-Content -Raw -LiteralPath $cargoPath
-          $cargo = [regex]::Replace($cargo, '(?m)^version = ".*"$', "version = `"$version`"", 1)
-          Set-Content -LiteralPath $cargoPath -Value $cargo -Encoding UTF8
 
           "APP_VERSION=$version" >> $env:GITHUB_ENV
 
@@ -83,11 +54,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri -- build --ci
 
-      - name: Prepare beta release assets
+      - name: Prepare release assets
         shell: pwsh
         run: |
           $bundleDir = "src-tauri/target/release/bundle/nsis"
-          $distDir = New-Item -ItemType Directory -Force -Path "artifacts/beta-release"
+          $distDir = New-Item -ItemType Directory -Force -Path "artifacts/release"
           $installer = Get-ChildItem -LiteralPath $bundleDir -Filter "Torch Overlay_*_x64-setup.exe" |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
@@ -104,8 +75,9 @@ jobs:
           Copy-Item -LiteralPath $installer.FullName -Destination $distDir.FullName -Force
           Copy-Item -LiteralPath $signaturePath -Destination $distDir.FullName -Force
 
+          $tag = "v$env:APP_VERSION"
           $encodedInstallerName = [uri]::EscapeDataString($installer.Name)
-          $installerUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/beta/$encodedInstallerName"
+          $installerUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$tag/$encodedInstallerName"
           $signature = (Get-Content -LiteralPath $signaturePath -Raw).Trim()
           $platform = [ordered]@{
             signature = $signature
@@ -113,7 +85,7 @@ jobs:
           }
           $latest = [ordered]@{
             version = $env:APP_VERSION
-            notes = "Torch Overlay beta build $env:APP_VERSION."
+            notes = "Torch Overlay release $env:APP_VERSION."
             pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
             platforms = [ordered]@{
               "windows-x86_64-nsis" = $platform
@@ -128,21 +100,20 @@ jobs:
             $utf8NoBom
           )
 
-      - name: Publish beta release
+      - name: Publish release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git tag -f beta $env:GITHUB_SHA
-          git push origin refs/tags/beta --force
+          $tag = "v$env:APP_VERSION"
+          $assets = Get-ChildItem -LiteralPath "artifacts/release" -File | ForEach-Object { $_.FullName }
 
-          $assets = Get-ChildItem -LiteralPath "artifacts/beta-release" -File | ForEach-Object { $_.FullName }
-          gh release view beta *> $null
+          gh release view $tag *> $null
           $releaseExists = $LASTEXITCODE -eq 0
 
           if ($releaseExists) {
-            gh release edit beta --title "Torch Overlay Beta" --notes "Beta build $env:APP_VERSION." --prerelease
-            gh release upload beta @assets --clobber
+            gh release edit $tag --title "Torch Overlay $env:APP_VERSION" --notes "Release $env:APP_VERSION." --latest
+            gh release upload $tag @assets --clobber
           } else {
-            gh release create beta @assets --title "Torch Overlay Beta" --notes "Beta build $env:APP_VERSION." --prerelease --target $env:GITHUB_SHA
+            gh release create $tag @assets --title "Torch Overlay $env:APP_VERSION" --notes "Release $env:APP_VERSION." --target $env:GITHUB_SHA --latest
           }
