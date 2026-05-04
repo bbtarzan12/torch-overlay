@@ -1,8 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { check, type Update } from "@tauri-apps/plugin-updater";
+import { check } from "@tauri-apps/plugin-updater";
 import type { TrackerSnapshot, UpdateInfo } from "./types";
-
-let pendingUpdate: Update | null = null;
 
 export function isTauriRuntime(): boolean {
   return "__TAURI_INTERNALS__" in window;
@@ -91,68 +89,18 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
   }
 
   try {
-    await pendingUpdate?.close();
-    pendingUpdate = null;
-
     const update = await check();
 
     if (!update) {
       return { state: "not_available" };
     }
 
-    pendingUpdate = update;
-
+    await update.close();
     return {
       state: "available",
       version: update.version,
       notes: update.body
     };
-  } catch (error) {
-    return {
-      state: "error",
-      message: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-export async function installAvailableUpdate(
-  onProgress?: (info: UpdateInfo) => void
-): Promise<UpdateInfo> {
-  if (!isTauriRuntime()) {
-    return { state: "error", message: "브라우저 미리보기에서는 업데이트 설치를 실행할 수 없습니다." };
-  }
-
-  try {
-    const update = pendingUpdate ?? (await check());
-
-    if (!update) {
-      pendingUpdate = null;
-      return { state: "not_available" };
-    }
-
-    pendingUpdate = update;
-
-    let downloaded = 0;
-    let contentLength: number | undefined;
-
-    await update.downloadAndInstall((event) => {
-      if (event.event === "Started") {
-        downloaded = 0;
-        contentLength = event.data.contentLength;
-        onProgress?.({ state: "downloading", version: update.version, progress: 0 });
-      } else if (event.event === "Progress") {
-        downloaded += event.data.chunkLength;
-        const progress = contentLength ? Math.min(100, (downloaded / contentLength) * 100) : undefined;
-        onProgress?.({ state: "downloading", version: update.version, progress });
-      } else if (event.event === "Finished") {
-        onProgress?.({ state: "installing", version: update.version, progress: 100 });
-      }
-    });
-
-    await update.close();
-    pendingUpdate = null;
-
-    return { state: "installing", version: update.version, progress: 100 };
   } catch (error) {
     return {
       state: "error",

@@ -5,7 +5,6 @@
   import { sampleCurrentRun, sampleItems, sampleRuns } from "./lib/sample-data";
   import {
     checkForUpdate,
-    installAvailableUpdate,
     loadTrackerSnapshot,
     resetTrackerSession,
     setClickableRects,
@@ -21,8 +20,7 @@
     DetailTab,
     ItemFilter,
     ItemValuationRow,
-    RunSummary,
-    UpdateInfo
+    RunSummary
   } from "./lib/types";
 
   let currentRun: CurrentRun = sampleCurrentRun;
@@ -36,7 +34,6 @@
   let itemFilter: ItemFilter = "all";
   let manualPrices: Record<number, string> = {};
   let itemActionError = "";
-  let updateInfo: UpdateInfo = { state: "idle" };
 
   let shellElement: HTMLElement;
   let barElement: HTMLElement;
@@ -77,7 +74,6 @@
 
   onMount(() => {
     let disposed = false;
-    let updateTimer: number | undefined;
     let pollTimer: number | undefined;
 
     void (async () => {
@@ -93,19 +89,11 @@
 
       await syncOverlayLayout();
       window.addEventListener("resize", syncOverlayLayout);
-
-      updateTimer = window.setTimeout(async () => {
-        updateInfo = { state: "checking" };
-        updateInfo = await checkForUpdate();
-        await syncOverlayLayout();
-      }, 10_000);
+      void checkForUpdate();
     })();
 
     return () => {
       disposed = true;
-      if (updateTimer) {
-        window.clearTimeout(updateTimer);
-      }
       if (pollTimer) {
         window.clearInterval(pollTimer);
       }
@@ -136,21 +124,6 @@
 
   async function setItemFilter(filter: ItemFilter) {
     itemFilter = filter;
-    await syncOverlayLayout();
-  }
-
-  async function handleUpdateClick() {
-    if (updateInfo.state === "available") {
-      updateInfo = { ...updateInfo, state: "downloading", progress: 0 };
-      updateInfo = await installAvailableUpdate((info) => {
-        updateInfo = info;
-      });
-      await syncOverlayLayout();
-      return;
-    }
-
-    updateInfo = { state: "checking" };
-    updateInfo = await checkForUpdate();
     await syncOverlayLayout();
   }
 
@@ -400,20 +373,6 @@
         />
         <span class="opacity-value">{opacity}%</span>
       </label>
-
-      {#if updateInfo.state === "available"}
-        <button class="update-button" type="button" onclick={handleUpdateClick}>
-          업데이트 {updateInfo.version ?? ""}
-        </button>
-      {:else if updateInfo.state === "checking"}
-        <span class="update-status">확인중</span>
-      {:else if updateInfo.state === "downloading"}
-        <span class="update-status">다운로드 {Math.round(updateInfo.progress ?? 0)}%</span>
-      {:else if updateInfo.state === "installing"}
-        <span class="update-status">설치중</span>
-      {:else if updateInfo.state === "error"}
-        <button class="update-button update-error" type="button" title={updateInfo.message} onclick={handleUpdateClick}>업데이트 오류</button>
-      {/if}
     </div>
 
     <div class="segment actions">

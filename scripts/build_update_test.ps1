@@ -197,7 +197,8 @@ $latest = [ordered]@{
   }
 }
 $latestPath = Join-Path $serverDir.FullName "latest.json"
-$latest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $latestPath -Encoding UTF8
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText($latestPath, ($latest | ConvertTo-Json -Depth 10), $utf8NoBom)
 
 $metadata = [ordered]@{
   localOnly = $true
@@ -219,7 +220,7 @@ $metadata = [ordered]@{
   installOldCommand = "npm run update:test:install-old"
 }
 $metadataPath = Join-Path $rootOutput.FullName "update-test.json"
-$metadata | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $metadataPath -Encoding UTF8
+[System.IO.File]::WriteAllText($metadataPath, ($metadata | ConvertTo-Json -Depth 10), $utf8NoBom)
 
 Get-ChildItem -LiteralPath $rootOutput.FullName, $oldDir.FullName, $serverDir.FullName |
   Select-Object FullName, Length, LastWriteTime |

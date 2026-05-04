@@ -27,14 +27,14 @@ npm run update:test:server
 npm run update:test:install-old
 ```
 
-4. 앱에서 `상세` 오른쪽의 `업데이트` 버튼을 누른다.
+4. 앱 시작 후 서버 로그에서 `/latest.json` 요청이 1회 들어오는지 확인한다.
 
 예상 흐름:
 
 - 앱은 `0.1.1`로 실행된다.
 - 로컬 서버의 `latest.json`은 `0.1.2`를 제공한다.
-- 버튼은 업데이트 발견 후 다운로드/설치 상태로 바뀐다.
-- 설치 후 `C:\Users\<user>\AppData\Local\Torch Overlay Update Test\torch-overlay.exe`가 갱신된다.
+- 앱 시작 시 업데이트 가능 여부를 1회 확인한다.
+- UI 버튼은 표시하지 않고, 자동 다운로드/설치도 수행하지 않는다.
 
 ## 주의
 
