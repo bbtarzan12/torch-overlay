@@ -92,17 +92,27 @@ updater plugin permission 오류
 npm run build:release:local
 ```
 
-이 단계는 `secrets/tauri-signing.key`와 `secrets/tauri-signing-password.txt`를 사용해 실제 배포와 같은 방식으로 빌드한다.
+이 단계는 공개 배포판과 겹치지 않는 로컬 QA 전용 설치본을 만든다.
+
+로컬 빌드는 `TAURI_CONFIG` override를 사용해 다음 값을 임시 적용한다.
+
+```text
+productName = Torch Overlay Local
+identifier = kr.tli.torch-overlay.local
+createUpdaterArtifacts = false
+updater endpoint = http://127.0.0.1:9/torch-overlay-local/latest.json
+```
+
+따라서 공개 릴리즈판 `Torch Overlay`와 설치 식별자가 다르고, GitHub Release용 updater artifact도 만들지 않는다.
 
 기대 산출물:
 
 ```text
-src-tauri/target/release/torch-overlay.exe
-src-tauri/target/release/bundle/nsis/Torch Overlay_0.1.0_x64-setup.exe
-src-tauri/target/release/bundle/nsis/Torch Overlay_0.1.0_x64-setup.exe.sig
+artifacts/local-build/Torch.Overlay.Local_{version}_{commit}-{timestamp}_x64-setup.exe
+artifacts/local-build/Torch.Overlay.Local_{version}_{commit}-{timestamp}.json
 ```
 
-GitHub Actions에서는 파일명이 `Torch.Overlay_0.1.0_x64-setup.exe` 형태로 올라갈 수 있다. updater는 `latest.json`의 URL과 signature를 기준으로 동작하므로 파일명의 공백 여부 자체는 문제가 아니다.
+`src-tauri/target/release/bundle/nsis` 아래에도 Tauri가 만든 원본 installer가 남을 수 있지만 QA에 사용할 파일은 항상 `artifacts/local-build` 아래의 `Torch.Overlay.Local_*` 파일이다.
 
 ## 설치본 확인
 
