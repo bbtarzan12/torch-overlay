@@ -23,8 +23,8 @@ $tauriOverride = @{
       @{
         title = $localProductName
         label = "main"
-        width = 1380
-        height = 420
+        width = 1404
+        height = 46
         decorations = $false
         transparent = $true
         alwaysOnTop = $true

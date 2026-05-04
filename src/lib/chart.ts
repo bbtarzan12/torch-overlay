@@ -62,15 +62,14 @@ function ratePerHour(run: RunSummary): number {
     return 0;
   }
 
-  return (run.crystal / run.durationSeconds) * 3600;
+  return (run.totalEstimatedValue / run.durationSeconds) * 3600;
 }
 
 function cumulativeValues(runs: RunSummary[]): number[] {
   let total = 0;
 
   return runs.map((run) => {
-    total += run.crystal;
+    total += run.totalEstimatedValue;
     return total;
   });
 }
-

@@ -11,7 +11,15 @@ export async function loadTrackerSnapshot(): Promise<TrackerSnapshot | null> {
     return null;
   }
 
-  return invoke<TrackerSnapshot>("parse_log_snapshot", {});
+  return invoke<TrackerSnapshot>("tracker_snapshot", {});
+}
+
+export async function resetTrackerSession(): Promise<TrackerSnapshot | null> {
+  if (!isTauriRuntime()) {
+    return null;
+  }
+
+  return invoke<TrackerSnapshot>("reset_tracker_session", {});
 }
 
 export async function setPositionLocked(locked: boolean): Promise<void> {
@@ -43,6 +51,14 @@ export async function setOverlayWindowSize(width: number, height: number): Promi
   }
 
   await invoke("set_overlay_window_size", { width, height });
+}
+
+export async function setOverlayOpacity(opacity: number): Promise<void> {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await invoke("set_overlay_opacity", { opacity });
 }
 
 export async function checkForUpdate(): Promise<UpdateInfo> {

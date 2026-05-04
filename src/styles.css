@@ -77,7 +77,6 @@ button {
   max-width: calc(100vw - 24px);
   overflow: visible;
   z-index: 1;
-  opacity: var(--app-opacity, 0.92);
   pointer-events: none;
 }
 
@@ -459,17 +458,18 @@ button {
 }
 
 .run-table col.map-col {
-  width: 34%;
+  width: 30%;
 }
 
 .run-table col.difficulty-col {
-  width: 24%;
+  width: 20%;
 }
 
 .run-table col.time-col,
 .run-table col.crystal-col,
+.run-table col.unpriced-col,
 .run-table col.rate-col {
-  width: 14%;
+  width: 12.5%;
 }
 
 .run-table th,

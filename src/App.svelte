@@ -6,7 +6,9 @@
   import {
     checkForUpdate,
     loadTrackerSnapshot,
+    resetTrackerSession,
     setClickableRects,
+    setOverlayOpacity,
     setOverlayWindowSize,
     setPositionLocked
   } from "./lib/tauri";
@@ -15,7 +17,7 @@
   let currentRun: CurrentRun = sampleCurrentRun;
   let runs: RunSummary[] = sampleRuns;
   let detailsOpen = false;
-  let positionLocked = true;
+  let positionLocked = false;
   let opacity = 92;
   let chartMode: ChartMode = "rate";
   let updateInfo: UpdateInfo = { state: "idle" };
@@ -24,30 +26,35 @@
   let barElement: HTMLElement;
   let detailsElement: HTMLElement;
 
-  $: totalCrystal = runs.reduce((sum, run) => sum + run.crystal, 0);
+  $: completedEstimatedValue = runs.reduce((sum, run) => sum + run.totalEstimatedValue, 0);
+  $: totalEstimatedValue = completedEstimatedValue + currentRun.totalEstimatedValue;
+  $: unpricedItemCount = runs.reduce(
+    (sum, run) => sum + run.unpricedItemCount,
+    currentRun.unpricedItemCount
+  );
   $: totalSeconds = runs.reduce((sum, run) => sum + run.durationSeconds, 0);
   $: averageSeconds = runs.length > 0 ? totalSeconds / runs.length : 0;
-  $: averageCrystal = runs.length > 0 ? totalCrystal / runs.length : 0;
-  $: averageRate = totalSeconds > 0 ? (totalCrystal / totalSeconds) * 3600 : 0;
-  $: currentRate = formatRate(currentRun.crystal, currentRun.elapsedSeconds);
+  $: averageCrystal = runs.length > 0 ? completedEstimatedValue / runs.length : 0;
+  $: averageRate = totalSeconds > 0 ? (completedEstimatedValue / totalSeconds) * 3600 : 0;
+  $: currentRate = formatRate(currentRun.totalEstimatedValue, currentRun.elapsedSeconds);
   $: chartSeries = buildChartSeries(runs, chartMode);
   $: chartTitle = chartMode === "cumulative" ? "누적 결정" : "시간 당 결정";
 
   onMount(() => {
     let disposed = false;
     let updateTimer: number | undefined;
+    let pollTimer: number | undefined;
 
     void (async () => {
-      const snapshot = await loadTrackerSnapshot();
+      await setPositionLocked(positionLocked);
+      await setOverlayOpacity(opacity / 100);
+      await refreshSnapshot();
 
       if (disposed) {
         return;
       }
 
-      if (snapshot) {
-        currentRun = snapshot.currentRun;
-        runs = snapshot.runs.length > 0 ? snapshot.runs : sampleRuns;
-      }
+      pollTimer = window.setInterval(refreshSnapshot, 1_000);
 
       await syncOverlayLayout();
       window.addEventListener("resize", syncOverlayLayout);
@@ -63,6 +70,9 @@
       disposed = true;
       if (updateTimer) {
         window.clearTimeout(updateTimer);
+      }
+      if (pollTimer) {
+        window.clearInterval(pollTimer);
       }
       window.removeEventListener("resize", syncOverlayLayout);
     };
@@ -89,13 +99,28 @@
     updateInfo = await checkForUpdate();
   }
 
-  function resetSession() {
-    runs = [];
-    currentRun = {
-      ...currentRun,
-      elapsedSeconds: 0,
-      crystal: 0
-    };
+  async function resetSession() {
+    const snapshot = await resetTrackerSession();
+    applySnapshot(snapshot);
+    await syncOverlayLayout();
+  }
+
+  async function refreshSnapshot() {
+    const snapshot = await loadTrackerSnapshot();
+    applySnapshot(snapshot);
+  }
+
+  function applySnapshot(snapshot: Awaited<ReturnType<typeof loadTrackerSnapshot>>) {
+    if (!snapshot) {
+      return;
+    }
+
+    currentRun = snapshot.currentRun;
+    runs = snapshot.runs;
+  }
+
+  async function handleOpacityInput() {
+    await setOverlayOpacity(opacity / 100);
   }
 
   async function syncClickableRects() {
@@ -142,7 +167,6 @@
   bind:this={shellElement}
   class="tracker-shell"
   data-position-locked={positionLocked}
-  style={`--app-opacity: ${opacity / 100};`}
 >
   <section bind:this={barElement} class="tracker-bar" aria-label="TLI 트래커 상단 바">
     <div class="segment status" data-tauri-drag-region={positionLocked ? undefined : ""}>
@@ -166,6 +190,8 @@
       <span class="value">
         <span class="highlight">+{currentRun.crystal} 결정</span>
         <span class="separator">·</span>
+        <span class="metric">+{formatNumber(currentRun.estimatedItemValue)} 추정</span>
+        <span class="separator">·</span>
         <span class="metric">{currentRate}/h</span>
       </span>
     </div>
@@ -173,11 +199,11 @@
     <div class="segment reset-stats" data-tauri-drag-region={positionLocked ? undefined : ""}>
       <span class="label">누적</span>
       <span class="value">
-        <span class="highlight">{totalCrystal} 결정</span>
+        <span class="highlight">{formatNumber(totalEstimatedValue)} 결정</span>
         <span class="separator">·</span>
         <span class="metric">평균 {formatNumber(averageRate)}/h</span>
         <span class="separator">·</span>
-        <span class="metric muted">{formatNumber(averageCrystal)}/런</span>
+        <span class="metric muted">미평가 {unpricedItemCount}</span>
       </span>
     </div>
 
@@ -190,6 +216,7 @@
           min="5"
           max="100"
           bind:value={opacity}
+          oninput={handleOpacityInput}
           aria-label="투명도"
         />
         <span class="opacity-value">{opacity}%</span>
@@ -256,6 +283,7 @@
                 <col class="difficulty-col" />
                 <col class="time-col" />
                 <col class="crystal-col" />
+                <col class="unpriced-col" />
                 <col class="rate-col" />
               </colgroup>
               <thead>
@@ -263,7 +291,8 @@
                   <th>맵</th>
                   <th>난이도</th>
                   <th>시간</th>
-                  <th>결정</th>
+                  <th>가치</th>
+                  <th>미평가</th>
                   <th>결정/h</th>
                 </tr>
               </thead>
@@ -273,8 +302,9 @@
                     <td>{run.mapNameKo}</td>
                     <td class="muted">{run.difficulty}</td>
                     <td>{formatDuration(run.durationSeconds)}</td>
-                    <td class="gold">{run.crystal}</td>
-                    <td class="gold">{formatRate(run.crystal, run.durationSeconds)}</td>
+                    <td class="gold">{formatNumber(run.totalEstimatedValue)}</td>
+                    <td>{run.unpricedItemCount}</td>
+                    <td class="gold">{formatRate(run.totalEstimatedValue, run.durationSeconds)}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -284,6 +314,7 @@
                   <td></td>
                   <td>{formatDuration(averageSeconds)}</td>
                   <td>{formatNumber(averageCrystal)}</td>
+                  <td>{unpricedItemCount}</td>
                   <td>{formatNumber(averageRate)}</td>
                 </tr>
               </tfoot>

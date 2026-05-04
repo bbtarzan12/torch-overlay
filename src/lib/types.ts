@@ -15,6 +15,10 @@ export interface RunSummary {
   difficulty: string;
   durationSeconds: number;
   crystal: number;
+  estimatedItemValue: number;
+  totalEstimatedValue: number;
+  unpricedItemCount: number;
+  itemCount: number;
 }
 
 export interface CurrentRun {
@@ -22,14 +26,30 @@ export interface CurrentRun {
   difficulty: string;
   elapsedSeconds: number;
   crystal: number;
+  estimatedItemValue: number;
+  totalEstimatedValue: number;
+  unpricedItemCount: number;
+  itemCount: number;
+}
+
+export interface LootSummary {
+  configBaseId: number;
+  quantity: number;
+  priceInCrystal?: number;
+  valueInCrystal: number;
 }
 
 export interface TrackerSnapshot {
   currentRun: CurrentRun;
   runs: RunSummary[];
   totalCrystal: number;
+  estimatedItemValue: number;
+  totalEstimatedValue: number;
   averageRate: number;
   averagePerRun: number;
+  unpricedItemCount: number;
+  knownPriceCount: number;
+  recentLoot: LootSummary[];
 }
 
 export interface UpdateInfo {
@@ -39,4 +59,3 @@ export interface UpdateInfo {
   progress?: number;
   message?: string;
 }
-

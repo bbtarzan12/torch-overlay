@@ -4279,6 +4279,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-updater",
  "thiserror 1.0.69",
+ "windows",
 ]
 
 [[package]]
