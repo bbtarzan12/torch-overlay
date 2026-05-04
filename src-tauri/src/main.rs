@@ -56,5 +56,5 @@ fn main() {
             set_clickable_rects
         ])
         .run(tauri::generate_context!())
-        .expect("failed to run TLI Crystal Tracker");
+        .expect("failed to run Torch Overlay");
 }
