@@ -7,7 +7,8 @@ $ErrorActionPreference = "Stop"
 $package = Get-Content -Raw -LiteralPath "package.json" | ConvertFrom-Json
 $version = [string]$package.version
 $commit = (git rev-parse --short HEAD).Trim()
-$dirty = (git status --short).Trim().Length -gt 0
+$statusOutput = git status --short
+$dirty = -not [string]::IsNullOrWhiteSpace(($statusOutput -join "`n"))
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $buildId = if ($dirty) { "$commit-dirty-$timestamp" } else { "$commit-$timestamp" }
 
