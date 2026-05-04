@@ -32,6 +32,37 @@ body {
   background: transparent;
 }
 
+.fatal-error {
+  position: fixed;
+  top: 8px;
+  left: 12px;
+  width: min(900px, calc(100vw - 24px));
+  max-height: calc(100vh - 16px);
+  padding: 14px 16px;
+  overflow: auto;
+  border: 1px solid rgba(232, 106, 82, 0.42);
+  border-radius: 8px;
+  color: #ffd7ce;
+  background: #120c0a;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  font-size: 13px;
+  white-space: normal;
+}
+
+.fatal-error strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #ffb29f;
+}
+
+.fatal-error pre {
+  margin: 0;
+  color: #f3eadb;
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
 button {
   font: inherit;
 }
@@ -521,4 +552,3 @@ button {
 .run-table .gold {
   color: var(--gold);
 }
-

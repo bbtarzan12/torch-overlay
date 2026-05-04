@@ -1,7 +1,7 @@
 {
   "name": "torch-overlay",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -10,7 +10,11 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "smoke:web": "node scripts/smoke-web.mjs",
+    "verify": "npm run check && npm run build && cargo fmt --check --manifest-path src-tauri/Cargo.toml && cargo test --manifest-path src-tauri/Cargo.toml",
+    "debug:tauri": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev_tauri.ps1",
+    "build:release:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_release_local.ps1"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

@@ -8,7 +8,7 @@
 
   let currentRun: CurrentRun = sampleCurrentRun;
   let runs: RunSummary[] = sampleRuns;
-  let detailsOpen = true;
+  let detailsOpen = false;
   let positionLocked = true;
   let opacity = 92;
   let chartMode: ChartMode = "rate";
