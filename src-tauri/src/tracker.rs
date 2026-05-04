@@ -93,15 +93,6 @@ struct PriceResponse {
     raw_lines: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
-struct MapContext {
-    map_code: String,
-    map_name_ko: String,
-    difficulty: String,
-    area_lv: Option<i64>,
-    level_uid: Option<String>,
-}
-
 #[derive(Debug)]
 struct MessageBlock {
     syn_id: String,
@@ -141,6 +132,7 @@ pub struct LogTracker {
     active_price_send: Option<MessageBlock>,
     active_price_recv: Option<MessageBlock>,
     pending_price_requests: BTreeMap<String, PriceRequest>,
+    next_run_id: i64,
 }
 
 impl LogTracker {
@@ -162,6 +154,7 @@ impl LogTracker {
             active_price_send: None,
             active_price_recv: None,
             pending_price_requests: BTreeMap::new(),
+            next_run_id: 1,
         };
 
         let _ = tracker.reload_price_cache();
@@ -183,6 +176,7 @@ impl LogTracker {
         self.active_price_send = None;
         self.active_price_recv = None;
         self.pending_price_requests.clear();
+        self.next_run_id = 1;
         self.reload_price_cache()?;
         self.bootstrap_inventory_baseline()?;
         Ok(())
@@ -212,10 +206,6 @@ impl LogTracker {
 
         self.inventory_totals.clear();
         self.line_number = 0;
-        let mut latest_context: Option<MapContext> = None;
-        let mut pending_area_lv = None;
-        let mut pending_level_uid: Option<String> = None;
-        let mut pending_level_id: Option<String> = None;
 
         for line in content.lines() {
             self.line_number += 1;
@@ -223,42 +213,9 @@ impl LogTracker {
                 self.inventory_totals
                     .insert(update.inventory_key(), update.bag_num);
             }
-            if let Some(area_lv) = parse_area_lv(line) {
-                pending_area_lv = Some(area_lv);
-            }
-            if let Some(level_info) = parse_level_info(line) {
-                pending_level_uid = Some(level_info.level_uid);
-                pending_level_id = level_info.level_id;
-            }
-            if is_town_line(line) {
-                latest_context = None;
-            }
-            if let Some(map_code) = parse_map_code(line) {
-                if is_town_map_code(&map_code) {
-                    latest_context = None;
-                } else {
-                    let area_lv = pending_area_lv
-                        .or_else(|| area_lv_from_level_uid(pending_level_uid.as_deref()));
-                    latest_context = Some(MapContext {
-                        map_name_ko: map_name_from_code(&map_code, pending_level_id.as_deref()),
-                        difficulty: difficulty_from_area_lv(area_lv),
-                        map_code,
-                        area_lv,
-                        level_uid: pending_level_uid.clone(),
-                    });
-                }
-            }
         }
 
         self.offset = file.stream_position().map_err(|error| error.to_string())?;
-        self.pending_area_lv = pending_area_lv;
-        self.pending_level_uid = pending_level_uid;
-        self.pending_level_id = pending_level_id;
-
-        if let Some(context) = latest_context {
-            self.start_bootstrap_run(context)?;
-        }
-
         Ok(())
     }
 
@@ -379,8 +336,12 @@ impl LogTracker {
 
         self.close_current_run(timestamp)?;
 
-        let run_id = db::insert_run(
+        let run_id = self.next_run_id;
+        self.next_run_id += 1;
+
+        db::insert_run(
             &self.db_path,
+            run_id,
             &timestamp.to_rfc3339_opts(SecondsFormat::Millis, true),
             &map_code,
             &map_name_ko,
@@ -395,33 +356,6 @@ impl LogTracker {
             map_code,
             map_name_ko,
             difficulty,
-            started_at: timestamp,
-            last_seen_at: timestamp,
-            ended_at: None,
-            loot: Vec::new(),
-        });
-
-        Ok(())
-    }
-
-    fn start_bootstrap_run(&mut self, context: MapContext) -> Result<(), String> {
-        let timestamp = Utc::now();
-        let run_id = db::insert_run(
-            &self.db_path,
-            &timestamp.to_rfc3339_opts(SecondsFormat::Millis, true),
-            &context.map_code,
-            &context.map_name_ko,
-            &context.difficulty,
-            context.area_lv,
-            context.level_uid.as_deref(),
-        )
-        .map_err(|error| error.to_string())?;
-
-        self.current_run = Some(RunState {
-            id: run_id,
-            map_code: context.map_code,
-            map_name_ko: context.map_name_ko,
-            difficulty: context.difficulty,
             started_at: timestamp,
             last_seen_at: timestamp,
             ended_at: None,
