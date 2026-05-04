@@ -203,7 +203,15 @@
     }
 
     itemActionError = "";
-    const snapshot = await setManualItemPrice(item.configBaseId, price);
+    let snapshot: Awaited<ReturnType<typeof setManualItemPrice>>;
+
+    try {
+      snapshot = await setManualItemPrice(item.configBaseId, price);
+    } catch (error) {
+      itemActionError = `가격 저장 실패: ${formatError(error)}`;
+      await syncOverlayLayout();
+      return;
+    }
 
     if (snapshot) {
       applySnapshot(snapshot);
@@ -232,7 +240,15 @@
   async function toggleIgnored(item: ItemValuationRow) {
     itemActionError = "";
     const ignored = !item.ignored;
-    const snapshot = await setItemIgnored(item.configBaseId, ignored);
+    let snapshot: Awaited<ReturnType<typeof setItemIgnored>>;
+
+    try {
+      snapshot = await setItemIgnored(item.configBaseId, ignored);
+    } catch (error) {
+      itemActionError = `무시 설정 실패: ${formatError(error)}`;
+      await syncOverlayLayout();
+      return;
+    }
 
     if (snapshot) {
       applySnapshot(snapshot);
@@ -252,6 +268,10 @@
     }
 
     await syncOverlayLayout();
+  }
+
+  function formatError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 
   function priceSourceLabel(item: ItemValuationRow): string {
