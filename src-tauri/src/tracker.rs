@@ -1,9 +1,9 @@
-use crate::{db, offline_items};
+use crate::{db, diagnostics, offline_items};
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs::File,
+    fs::{self, File},
     io::{Read, Seek, SeekFrom},
     path::PathBuf,
     sync::OnceLock,
@@ -76,6 +76,23 @@ pub struct TrackerSnapshot {
     pub known_price_count: i64,
     pub recent_loot: Vec<LootSummary>,
     pub items: Vec<ItemValuationRow>,
+    pub debug: TrackerDebugInfo,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrackerDebugInfo {
+    pub game_log_path: String,
+    pub game_log_exists: bool,
+    pub game_log_size: Option<u64>,
+    pub read_offset: u64,
+    pub line_number: i64,
+    pub idle_poll_count: u64,
+    pub current_proto: Option<String>,
+    pub active_run: bool,
+    pub current_map: Option<String>,
+    pub last_error: Option<String>,
+    pub last_activity: String,
 }
 
 #[derive(Debug, Clone)]
@@ -165,6 +182,9 @@ pub struct LogTracker {
     active_price_recv: Option<MessageBlock>,
     pending_price_requests: BTreeMap<String, PriceRequest>,
     next_run_id: i64,
+    last_log_open_error: Option<String>,
+    idle_poll_count: u64,
+    last_activity: String,
 }
 
 impl LogTracker {
@@ -189,14 +209,24 @@ impl LogTracker {
             active_price_recv: None,
             pending_price_requests: BTreeMap::new(),
             next_run_id: 1,
+            last_log_open_error: None,
+            idle_poll_count: 0,
+            last_activity: "tracker created".to_string(),
         };
 
+        diagnostics::write(format!(
+            "tracker init log_path=\"{}\" db_path=\"{}\"",
+            tracker.log_path.display(),
+            tracker.db_path.display()
+        ));
+        diagnostics::probe_file("tracker init game log", &tracker.log_path);
         let _ = tracker.reload_valuation_settings();
         let _ = tracker.bootstrap_inventory_baseline();
         tracker
     }
 
     pub fn reset_session(&mut self) -> Result<(), String> {
+        diagnostics::write("tracker reset_session");
         self.offset = 0;
         self.pending_fragment.clear();
         self.line_number = 0;
@@ -211,9 +241,28 @@ impl LogTracker {
         self.active_price_recv = None;
         self.pending_price_requests.clear();
         self.next_run_id = 1;
+        self.last_log_open_error = None;
+        self.idle_poll_count = 0;
+        self.last_activity = "session reset".to_string();
         self.reload_valuation_settings()?;
         self.bootstrap_inventory_baseline()?;
         Ok(())
+    }
+
+    pub fn game_log_path(&self) -> &PathBuf {
+        &self.log_path
+    }
+
+    pub fn set_log_path(&mut self, log_path: PathBuf) -> Result<TrackerSnapshot, String> {
+        diagnostics::write(format!(
+            "game log path override requested old=\"{}\" new=\"{}\"",
+            self.log_path.display(),
+            log_path.display()
+        ));
+        diagnostics::probe_file("game log override", &log_path);
+        self.log_path = log_path;
+        self.reset_session()?;
+        Ok(self.build_snapshot())
     }
 
     pub fn snapshot(&mut self) -> Result<TrackerSnapshot, String> {
@@ -301,39 +350,101 @@ impl LogTracker {
     }
 
     fn bootstrap_inventory_baseline(&mut self) -> Result<(), String> {
-        let Ok(mut file) = File::open(&self.log_path) else {
-            self.offset = 0;
-            return Ok(());
+        diagnostics::write(format!(
+            "bootstrap inventory baseline starting log_path=\"{}\"",
+            self.log_path.display()
+        ));
+
+        let mut file = match File::open(&self.log_path) {
+            Ok(file) => file,
+            Err(error) => {
+                self.offset = 0;
+                diagnostics::write(format!(
+                    "bootstrap inventory baseline open failed log_path=\"{}\" error={error}",
+                    self.log_path.display()
+                ));
+                return Ok(());
+            }
         };
 
         let mut content = String::new();
-        file.read_to_string(&mut content)
-            .map_err(|error| error.to_string())?;
+        file.read_to_string(&mut content).map_err(|error| {
+            diagnostics::write(format!(
+                "bootstrap inventory baseline read failed log_path=\"{}\" error={error}",
+                self.log_path.display()
+            ));
+            error.to_string()
+        })?;
 
         self.inventory_totals.clear();
         self.line_number = 0;
+        let mut item_update_count = 0;
 
         for line in content.lines() {
             self.line_number += 1;
             if let Some(update) = parse_item_update(line) {
+                item_update_count += 1;
                 self.inventory_totals
                     .insert(update.inventory_key(), update.bag_num);
             }
         }
 
         self.offset = file.stream_position().map_err(|error| error.to_string())?;
+        self.last_activity = format!(
+            "baseline ready lines={} item_updates={} offset={}",
+            self.line_number, item_update_count, self.offset
+        );
+        diagnostics::write(format!(
+            "bootstrap inventory baseline completed lines={} item_updates={} inventory_keys={} offset={}",
+            self.line_number,
+            item_update_count,
+            self.inventory_totals.len(),
+            self.offset
+        ));
         Ok(())
     }
 
     fn poll(&mut self) -> Result<(), String> {
-        let Ok(mut file) = File::open(&self.log_path) else {
-            return Ok(());
+        let mut file = match File::open(&self.log_path) {
+            Ok(file) => {
+                if self.last_log_open_error.take().is_some() {
+                    diagnostics::write(format!(
+                        "game log open recovered log_path=\"{}\"",
+                        self.log_path.display()
+                    ));
+                }
+                self.last_activity = "game log open ok".to_string();
+                file
+            }
+            Err(error) => {
+                let message = format!("open failed error={error}");
+                if self.last_log_open_error.as_deref() != Some(message.as_str()) {
+                    diagnostics::write(format!(
+                        "game log open failed log_path=\"{}\" error={error}",
+                        self.log_path.display()
+                    ));
+                    self.last_log_open_error = Some(message);
+                }
+                self.last_activity = format!("game log open failed: {error}");
+                return Ok(());
+            }
         };
 
-        let len = file.metadata().map_err(|error| error.to_string())?.len();
+        let len = file
+            .metadata()
+            .map_err(|error| {
+                self.last_activity = format!("game log metadata failed: {error}");
+                error.to_string()
+            })?
+            .len();
         if len < self.offset {
+            diagnostics::write(format!(
+                "game log truncated len={} previous_offset={}",
+                len, self.offset
+            ));
             self.offset = 0;
             self.pending_fragment.clear();
+            self.last_activity = "game log truncated; offset reset".to_string();
         }
 
         file.seek(SeekFrom::Start(self.offset))
@@ -345,8 +456,18 @@ impl LogTracker {
         self.offset = file.stream_position().map_err(|error| error.to_string())?;
 
         if chunk.is_empty() {
+            self.idle_poll_count = self.idle_poll_count.saturating_add(1);
+            self.last_activity =
+                format!("waiting for log changes len={} offset={}", len, self.offset);
+            if self.idle_poll_count == 1 || self.idle_poll_count % 60 == 0 {
+                diagnostics::write(format!(
+                    "game log poll idle count={} len={} offset={}",
+                    self.idle_poll_count, len, self.offset
+                ));
+            }
             return Ok(());
         }
+        self.idle_poll_count = 0;
 
         let mut content = String::new();
         if !self.pending_fragment.is_empty() {
@@ -365,10 +486,24 @@ impl LogTracker {
             }
         }
 
+        let consumed_line_count = content.lines().count();
         for line in content.lines() {
             self.line_number += 1;
             self.consume_line(line)?;
         }
+
+        self.last_activity = format!(
+            "consumed bytes={} lines={} offset={}",
+            chunk.len(),
+            consumed_line_count,
+            self.offset
+        );
+        diagnostics::write(format!(
+            "game log poll consumed bytes={} lines={} offset={}",
+            chunk.len(),
+            consumed_line_count,
+            self.offset
+        ));
 
         Ok(())
     }
@@ -457,6 +592,12 @@ impl LogTracker {
         )
         .map_err(|error| error.to_string())?;
 
+        diagnostics::write(format!(
+            "run opened id={} map_code={} map_name_ko={} difficulty={} area_lv={:?} level_uid={:?}",
+            run_id, map_code, map_name_ko, difficulty, area_lv, self.pending_level_uid
+        ));
+        self.last_activity = format!("run opened {map_name_ko} {difficulty}");
+
         self.current_run = Some(RunState {
             id: run_id,
             map_code,
@@ -485,6 +626,16 @@ impl LogTracker {
         )
         .map_err(|error| error.to_string())?;
 
+        diagnostics::write(format!(
+            "run closed id={} map_name_ko={} difficulty={} duration_seconds={} loot_events={}",
+            run.id,
+            run.map_name_ko,
+            run.difficulty,
+            duration_seconds(run.started_at, timestamp),
+            run.loot.len()
+        ));
+        self.last_activity = format!("run closed {} {}", run.map_name_ko, run.difficulty);
+
         if duration_seconds(run.started_at, timestamp) > 0 || !run.loot.is_empty() {
             self.completed_runs.push(run);
         }
@@ -500,13 +651,23 @@ impl LogTracker {
     ) -> Result<(), String> {
         let key = update.inventory_key();
         let previous = self.inventory_totals.insert(key, update.bag_num);
-        let delta = previous.map_or(update.bag_num, |value| update.bag_num - value);
+        let Some(delta) = inventory_delta(update.change_kind, previous, update.bag_num) else {
+            return Ok(());
+        };
 
-        if delta <= 0 || self.current_proto.as_deref() != Some("PickItems") {
+        if self.current_proto.as_deref() != Some("PickItems") {
             return Ok(());
         }
 
         let Some(run) = &mut self.current_run else {
+            diagnostics::write(format!(
+                "loot ignored because no current run config_base_id={} delta={} line_number={}",
+                update.config_base_id, delta, self.line_number
+            ));
+            self.last_activity = format!(
+                "loot ignored without active run id={} quantity={}",
+                update.config_base_id, delta
+            );
             return Ok(());
         };
 
@@ -529,6 +690,20 @@ impl LogTracker {
             raw_line,
         )
         .map_err(|error| error.to_string())?;
+
+        diagnostics::write(format!(
+            "loot captured run_id={} config_base_id={} quantity={} page_id={:?} slot_id={:?} line_number={}",
+            run.id,
+            update.config_base_id,
+            delta,
+            update.page_id,
+            update.slot_id,
+            self.line_number
+        ));
+        self.last_activity = format!(
+            "loot captured id={} quantity={} run_id={}",
+            update.config_base_id, delta, run.id
+        );
 
         run.loot.push(loot);
         Ok(())
@@ -609,6 +784,20 @@ impl LogTracker {
             &raw_response,
         )
         .map_err(|error| error.to_string())?;
+
+        diagnostics::write(format!(
+            "price estimate updated config_base_id={} selected_price={} samples={} syn_id={}",
+            config_base_id,
+            selected_price,
+            response.unit_prices.len(),
+            syn_id
+        ));
+        self.last_activity = format!(
+            "price updated id={} price={} samples={}",
+            config_base_id,
+            selected_price,
+            response.unit_prices.len()
+        );
 
         self.reload_price_cache()?;
         Ok(())
@@ -703,6 +892,28 @@ impl LogTracker {
             known_price_count: self.price_cache.len() as i64,
             recent_loot,
             items,
+            debug: self.debug_info(),
+        }
+    }
+
+    fn debug_info(&self) -> TrackerDebugInfo {
+        let metadata = fs::metadata(&self.log_path).ok();
+
+        TrackerDebugInfo {
+            game_log_path: self.log_path.display().to_string(),
+            game_log_exists: metadata.as_ref().is_some_and(|metadata| metadata.is_file()),
+            game_log_size: metadata.map(|metadata| metadata.len()),
+            read_offset: self.offset,
+            line_number: self.line_number,
+            idle_poll_count: self.idle_poll_count,
+            current_proto: self.current_proto.clone(),
+            active_run: self.current_run.is_some(),
+            current_map: self
+                .current_run
+                .as_ref()
+                .map(|run| format!("{} {}", run.map_name_ko, run.difficulty)),
+            last_error: self.last_log_open_error.clone(),
+            last_activity: self.last_activity.clone(),
         }
     }
 
@@ -912,11 +1123,18 @@ struct LevelInfo {
 
 #[derive(Debug)]
 struct ItemUpdate {
+    change_kind: ItemChangeKind,
     config_base_id: i64,
     item_instance_id: Option<String>,
     bag_num: i64,
     page_id: Option<i64>,
     slot_id: Option<i64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ItemChangeKind {
+    Add,
+    Update,
 }
 
 impl ItemUpdate {
@@ -1008,7 +1226,14 @@ fn parse_proto_start(line: &str) -> Option<String> {
 }
 
 fn parse_item_update(line: &str) -> Option<ItemUpdate> {
-    let rest = line.split_once("ItemChange@ Update Id=")?.1;
+    let (change_kind, rest) = if let Some((_, rest)) = line.split_once("ItemChange@ Update Id=") {
+        (ItemChangeKind::Update, rest)
+    } else if let Some((_, rest)) = line.split_once("ItemChange@ Add Id=") {
+        (ItemChangeKind::Add, rest)
+    } else {
+        return None;
+    };
+
     let id = rest.split_whitespace().next()?;
     let (base_id_text, instance_id) = id.split_once('_').map_or((id, None), |(base, instance)| {
         (base, Some(instance.to_string()))
@@ -1017,12 +1242,30 @@ fn parse_item_update(line: &str) -> Option<ItemUpdate> {
     let bag_num = parse_number_after(line, "BagNum=")?;
 
     Some(ItemUpdate {
+        change_kind,
         config_base_id,
         item_instance_id: instance_id,
         bag_num,
         page_id: parse_number_after(line, "PageId="),
         slot_id: parse_number_after(line, "SlotId="),
     })
+}
+
+fn inventory_delta(
+    change_kind: ItemChangeKind,
+    previous_bag_num: Option<i64>,
+    current_bag_num: i64,
+) -> Option<i64> {
+    let delta = match change_kind {
+        ItemChangeKind::Add => current_bag_num,
+        ItemChangeKind::Update => current_bag_num - previous_bag_num?,
+    };
+
+    if delta > 0 {
+        Some(delta)
+    } else {
+        None
+    }
 }
 
 fn parse_message_start(line: &str, direction: &str) -> Option<String> {
@@ -1299,5 +1542,47 @@ mod tests {
         assert_eq!(round_collected_price(1.234), 1.23);
         assert_eq!(round_collected_price(1.235), 1.24);
         assert_eq!(round_collected_price(0.004), 0.01);
+    }
+
+    #[test]
+    fn treats_first_update_as_inventory_baseline() {
+        assert_eq!(inventory_delta(ItemChangeKind::Update, None, 8986), None);
+        assert_eq!(
+            inventory_delta(ItemChangeKind::Update, Some(8986), 8992),
+            Some(6)
+        );
+        assert_eq!(
+            inventory_delta(ItemChangeKind::Update, Some(8992), 8992),
+            None
+        );
+        assert_eq!(
+            inventory_delta(ItemChangeKind::Update, Some(8992), 8986),
+            None
+        );
+    }
+
+    #[test]
+    fn treats_add_as_new_inventory_delta() {
+        assert_eq!(inventory_delta(ItemChangeKind::Add, None, 11), Some(11));
+        assert_eq!(inventory_delta(ItemChangeKind::Add, Some(4), 1), Some(1));
+    }
+
+    #[test]
+    fn parses_add_and_update_item_change_kinds() {
+        let update = parse_item_update(
+            "[2026.05.05-03.57.28:287][738]TLLua: Display: [Game] ItemChange@ Update Id=5028_abc BagNum=584 in PageId=102 SlotId=9",
+        )
+        .expect("update item change should parse");
+        assert_eq!(update.change_kind, ItemChangeKind::Update);
+        assert_eq!(update.config_base_id, 5028);
+        assert_eq!(update.bag_num, 584);
+
+        let add = parse_item_update(
+            "[2026.05.04-02.04.44:096][919]TLLua: Display: [Game] ItemChange@ Add Id=100300_def BagNum=11 in PageId=102 SlotId=0",
+        )
+        .expect("add item change should parse");
+        assert_eq!(add.change_kind, ItemChangeKind::Add);
+        assert_eq!(add.config_base_id, 100300);
+        assert_eq!(add.bag_num, 11);
     }
 }

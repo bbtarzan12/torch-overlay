@@ -84,6 +84,30 @@ export async function setOverlayOpacity(opacity: number): Promise<void> {
   await invoke("set_overlay_opacity", { opacity });
 }
 
+export async function openDiagnosticsFolder(): Promise<void> {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await invoke("open_diagnostics_folder", {});
+}
+
+export async function openGameLogFolder(): Promise<void> {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await invoke("open_game_log_folder", {});
+}
+
+export async function setGameLogPath(path: string): Promise<TrackerSnapshot | null> {
+  if (!isTauriRuntime()) {
+    return null;
+  }
+
+  return invoke<TrackerSnapshot>("set_game_log_path", { path });
+}
+
 export async function installStartupUpdate(
   onStatus?: (info: UpdateInfo) => void
 ): Promise<UpdateInfo> {

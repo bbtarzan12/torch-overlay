@@ -1,4 +1,4 @@
-import type { CurrentRun, ItemValuationRow, RunSummary } from "./types";
+import type { CurrentRun, ItemValuationRow, RunSummary, TrackerDebugInfo } from "./types";
 
 export const sampleCurrentRun: CurrentRun = {
   mapNameKo: "종식의 벽",
@@ -33,6 +33,21 @@ export const sampleItems: ItemValuationRow[] = [
   makeItem(772210, null, 2, "unpriced", undefined, 0, 0, false),
   makeItem(310044, null, 5, "ignored", undefined, 0, 0, true)
 ];
+
+export const sampleDebugInfo: TrackerDebugInfo = {
+  gameLogPath:
+    "D:\\SteamLibrary\\steamapps\\common\\Torchlight Infinite\\UE_game\\TorchLight\\Saved\\Logs\\UE_game.log",
+  gameLogExists: true,
+  gameLogSize: 0,
+  readOffset: 0,
+  lineNumber: 0,
+  idlePollCount: 0,
+  currentProto: null,
+  activeRun: false,
+  currentMap: null,
+  lastError: null,
+  lastActivity: "mock"
+};
 
 function makeRun(
   id: number,

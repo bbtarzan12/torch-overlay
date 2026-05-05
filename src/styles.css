@@ -617,6 +617,120 @@ button {
   background: #0d0c0a;
 }
 
+.debug-panel {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  min-width: 0;
+  min-height: 0;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(222, 178, 92, 0.12);
+  border-radius: 8px;
+  background: #0d0c0a;
+}
+
+.debug-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.debug-card {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(222, 178, 92, 0.11);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.debug-label,
+.debug-card small,
+.debug-path-field span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.debug-card strong {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #f1d49b;
+  font-size: 14px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-card strong.bad {
+  color: #ffb29f;
+}
+
+.debug-card small {
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-path-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.debug-path-field {
+  min-width: 0;
+}
+
+.debug-path-field input {
+  width: 100%;
+  height: 30px;
+  margin-top: 5px;
+  padding: 0 9px;
+  border: 1px solid rgba(222, 178, 92, 0.16);
+  border-radius: 7px;
+  color: #e9dfcb;
+  background: rgba(0, 0, 0, 0.26);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.debug-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.debug-open-button {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid rgba(222, 178, 92, 0.18);
+  border-radius: 7px;
+  color: #fff2d2;
+  background: rgba(231, 190, 100, 0.14);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.debug-open-button:hover {
+  background: rgba(231, 190, 100, 0.22);
+}
+
+.debug-error {
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 178, 159, 0.16);
+  border-radius: 7px;
+  color: #ffb29f;
+  background: rgba(255, 178, 159, 0.05);
+  font-size: 11px;
+  font-weight: 750;
+}
+
 .item-toolbar {
   display: flex;
   align-items: center;

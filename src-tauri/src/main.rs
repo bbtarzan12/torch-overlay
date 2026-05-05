@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod db;
+mod diagnostics;
 mod offline_items;
 #[cfg(test)]
 #[allow(dead_code)]
@@ -9,9 +10,9 @@ mod tracker;
 
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{self, OpenOptions},
-    io::Write,
+    env, fs,
     path::{Path, PathBuf},
+    process::Command,
     sync::{Arc, Mutex, OnceLock},
 };
 use tauri::{LogicalSize, Manager, PhysicalPosition, State, Window, WindowEvent};
@@ -19,6 +20,7 @@ use tracker::{LogTracker, TrackerSnapshot};
 
 struct AppState {
     tracker: Mutex<LogTracker>,
+    manual_log_path_file: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -82,6 +84,82 @@ fn set_overlay_opacity(window: Window, opacity: f64) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_diagnostics_folder() -> Result<(), String> {
+    let Some(path) = diagnostics::dir() else {
+        return Err("failed to resolve diagnostics folder".to_string());
+    };
+
+    fs::create_dir_all(&path).map_err(|error| error.to_string())?;
+    diagnostics::write(format!(
+        "open diagnostics folder requested path=\"{}\"",
+        path.display()
+    ));
+
+    open_folder(&path)
+}
+
+#[tauri::command]
+fn open_game_log_folder(state: State<AppState>) -> Result<(), String> {
+    let tracker = state
+        .tracker
+        .lock()
+        .map_err(|error| format!("tracker lock poisoned: {error}"))?;
+    let Some(path) = tracker.game_log_path().parent() else {
+        return Err("failed to resolve game log folder".to_string());
+    };
+
+    open_folder(path)
+}
+
+#[tauri::command]
+fn set_game_log_path(state: State<AppState>, path: String) -> Result<TrackerSnapshot, String> {
+    let path = PathBuf::from(path.trim());
+
+    if !path.is_file() {
+        diagnostics::write(format!(
+            "manual game log path rejected path=\"{}\"",
+            path.display()
+        ));
+        return Err("입력한 경로에 로그 파일이 없습니다.".to_string());
+    }
+
+    if let Some(manual_log_path_file) = &state.manual_log_path_file {
+        if let Some(parent) = manual_log_path_file.parent() {
+            fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        }
+
+        fs::write(manual_log_path_file, path.to_string_lossy().as_bytes())
+            .map_err(|error| error.to_string())?;
+    }
+
+    let mut tracker = state
+        .tracker
+        .lock()
+        .map_err(|error| format!("tracker lock poisoned: {error}"))?;
+    tracker.set_log_path(path)
+}
+
+fn open_folder(path: &Path) -> Result<(), String> {
+    diagnostics::write(format!("open folder requested path=\"{}\"", path.display()));
+
+    #[cfg(windows)]
+    {
+        Command::new("explorer")
+            .arg(path)
+            .spawn()
+            .map_err(|error| error.to_string())?;
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        return Err("opening folders is only supported on Windows".to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn tracker_snapshot(state: State<AppState>) -> Result<TrackerSnapshot, String> {
     let mut tracker = state
         .tracker
@@ -131,31 +209,286 @@ fn default_log_path() -> String {
     .to_string()
 }
 
+fn resolve_game_log_path(manual_log_path_file: Option<&Path>) -> PathBuf {
+    let candidates = game_log_candidates(
+        manual_log_path_file
+            .and_then(load_manual_game_log_path)
+            .filter(|path| !path.as_os_str().is_empty()),
+    );
+
+    for candidate in &candidates {
+        let exists = candidate.path.is_file();
+        diagnostics::write(format!(
+            "game log candidate source={} path=\"{}\" exists={exists}",
+            candidate.source,
+            candidate.path.display()
+        ));
+
+        if exists {
+            return candidate.path.clone();
+        }
+    }
+
+    diagnostics::write("no game log candidate exists; falling back to default path");
+    PathBuf::from(default_log_path())
+}
+
+#[derive(Debug)]
+struct GameLogCandidate {
+    source: String,
+    path: PathBuf,
+}
+
+fn game_log_candidates(manual_log_path: Option<PathBuf>) -> Vec<GameLogCandidate> {
+    let mut candidates = Vec::new();
+
+    if let Some(path) = env::var_os("TORCH_OVERLAY_GAME_LOG").map(PathBuf::from) {
+        push_log_candidate(&mut candidates, "env:TORCH_OVERLAY_GAME_LOG", path);
+    }
+
+    if let Some(path) = manual_log_path {
+        push_log_candidate(&mut candidates, "manual-setting", path);
+    }
+
+    for steam_root in steam_library_roots() {
+        push_log_candidate(
+            &mut candidates,
+            "steam-libraryfolders",
+            steam_root
+                .join("steamapps")
+                .join("common")
+                .join("Torchlight Infinite")
+                .join("UE_game")
+                .join("TorchLight")
+                .join("Saved")
+                .join("Logs")
+                .join("UE_game.log"),
+        );
+    }
+
+    push_log_candidate(
+        &mut candidates,
+        "default",
+        PathBuf::from(default_log_path()),
+    );
+
+    for drive in b'C'..=b'Z' {
+        let prefix = format!("{}:\\", drive as char);
+        for steam_root in [
+            PathBuf::from(format!("{prefix}SteamLibrary")),
+            PathBuf::from(format!("{prefix}Steam")),
+            PathBuf::from(format!("{prefix}Program Files (x86)\\Steam")),
+            PathBuf::from(format!("{prefix}Program Files\\Steam")),
+        ] {
+            push_log_candidate(
+                &mut candidates,
+                "drive-scan",
+                steam_root
+                    .join("steamapps")
+                    .join("common")
+                    .join("Torchlight Infinite")
+                    .join("UE_game")
+                    .join("TorchLight")
+                    .join("Saved")
+                    .join("Logs")
+                    .join("UE_game.log"),
+            );
+        }
+    }
+
+    candidates
+}
+
+fn manual_game_log_path_file(app: &tauri::AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .map(|path| path.join("game-log-path.txt"))
+}
+
+fn load_manual_game_log_path(path: &Path) -> Option<PathBuf> {
+    let raw = fs::read_to_string(path).ok()?;
+    let trimmed = raw.trim();
+
+    if trimmed.is_empty() {
+        None
+    } else {
+        diagnostics::write(format!("manual game log path loaded path=\"{trimmed}\""));
+        Some(PathBuf::from(trimmed))
+    }
+}
+
+fn push_log_candidate(candidates: &mut Vec<GameLogCandidate>, source: &str, path: PathBuf) {
+    if candidates
+        .iter()
+        .any(|candidate| path_eq_ignore_ascii_case(&candidate.path, &path))
+    {
+        return;
+    }
+
+    candidates.push(GameLogCandidate {
+        source: source.to_string(),
+        path,
+    });
+}
+
+fn steam_library_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+
+    for steam_root in steam_install_roots() {
+        push_unique_path(&mut roots, steam_root.clone());
+
+        let library_file = steam_root.join("steamapps").join("libraryfolders.vdf");
+        let Ok(raw) = fs::read_to_string(&library_file) else {
+            diagnostics::write(format!(
+                "steam library file missing path=\"{}\"",
+                library_file.display()
+            ));
+            continue;
+        };
+
+        diagnostics::write(format!(
+            "steam library file loaded path=\"{}\" bytes={}",
+            library_file.display(),
+            raw.len()
+        ));
+
+        for library_path in parse_steam_library_paths(&raw) {
+            push_unique_path(&mut roots, library_path);
+        }
+    }
+
+    roots
+}
+
+fn steam_install_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+
+    for variable in ["ProgramFiles(x86)", "ProgramFiles"] {
+        if let Some(program_files) = env::var_os(variable).map(PathBuf::from) {
+            push_unique_path(&mut roots, program_files.join("Steam"));
+        }
+    }
+
+    for drive in b'C'..=b'Z' {
+        let prefix = format!("{}:\\", drive as char);
+        push_unique_path(&mut roots, PathBuf::from(format!("{prefix}Steam")));
+        push_unique_path(
+            &mut roots,
+            PathBuf::from(format!("{prefix}Program Files (x86)\\Steam")),
+        );
+        push_unique_path(
+            &mut roots,
+            PathBuf::from(format!("{prefix}Program Files\\Steam")),
+        );
+    }
+
+    roots
+}
+
+fn parse_steam_library_paths(raw: &str) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    for line in raw.lines() {
+        let values = quoted_values(line);
+
+        if values.len() >= 2 && values[0] == "path" {
+            push_unique_path(&mut paths, PathBuf::from(values[1].replace("\\\\", "\\")));
+        } else if values.len() == 2
+            && values[0]
+                .chars()
+                .all(|character| character.is_ascii_digit())
+        {
+            push_unique_path(&mut paths, PathBuf::from(values[1].replace("\\\\", "\\")));
+        }
+    }
+
+    paths
+}
+
+fn quoted_values(line: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    let mut current = String::new();
+    let mut in_quote = false;
+    let mut escaped = false;
+
+    for character in line.chars() {
+        if escaped {
+            current.push(character);
+            escaped = false;
+            continue;
+        }
+
+        if in_quote && character == '\\' {
+            escaped = true;
+            continue;
+        }
+
+        if character == '"' {
+            if in_quote {
+                values.push(current.clone());
+                current.clear();
+            }
+            in_quote = !in_quote;
+            continue;
+        }
+
+        if in_quote {
+            current.push(character);
+        }
+    }
+
+    values
+}
+
+fn push_unique_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
+    if paths
+        .iter()
+        .any(|existing| path_eq_ignore_ascii_case(existing, &path))
+    {
+        return;
+    }
+
+    paths.push(path);
+}
+
+fn path_eq_ignore_ascii_case(left: &Path, right: &Path) -> bool {
+    left.to_string_lossy()
+        .eq_ignore_ascii_case(right.to_string_lossy().as_ref())
+}
+
 fn main() {
-    install_diagnostics();
-    write_diagnostic("process starting");
+    diagnostics::install_panic_hook();
+    diagnostics::write("process starting");
 
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            write_diagnostic("setup starting");
-            write_diagnostic(format!(
+            diagnostics::write("setup starting");
+            diagnostics::write(format!(
                 "app data dir: {:?}",
                 app.path().app_data_dir().ok()
             ));
             db::init(app.handle()).map_err(|error| {
-                write_diagnostic(format!("db init failed: {error:?}"));
+                diagnostics::write(format!("db init failed: {error:?}"));
                 Box::new(error) as Box<dyn std::error::Error>
             })?;
             let db_path = db::path(app.handle()).map_err(|error| {
-                write_diagnostic(format!("db path failed: {error:?}"));
+                diagnostics::write(format!("db path failed: {error:?}"));
                 Box::new(error) as Box<dyn std::error::Error>
             })?;
-            let tracker = LogTracker::new(PathBuf::from(default_log_path()), db_path);
+            diagnostics::probe_file("tracker db", &db_path);
+
+            let manual_log_path_file = manual_game_log_path_file(app.handle());
+            let log_path = resolve_game_log_path(manual_log_path_file.as_deref());
+            diagnostics::probe_file("selected game log", &log_path);
+
+            let tracker = LogTracker::new(log_path, db_path);
             app.manage(AppState {
                 tracker: Mutex::new(tracker),
+                manual_log_path_file,
             });
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_size(LogicalSize::new(1380.0, 30.0));
@@ -163,7 +496,7 @@ fn main() {
                 install_window_position_persistence(&window, app.handle());
                 install_overlay_hit_test(&window);
             }
-            write_diagnostic("setup completed");
+            diagnostics::write("setup completed");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -174,12 +507,15 @@ fn main() {
             set_position_locked,
             set_clickable_rects,
             set_overlay_window_size,
-            set_overlay_opacity
+            set_overlay_opacity,
+            open_diagnostics_folder,
+            open_game_log_folder,
+            set_game_log_path
         ])
         .run(tauri::generate_context!());
 
     if let Err(error) = result {
-        write_diagnostic(format!("tauri runtime failed: {error:?}"));
+        diagnostics::write(format!("tauri runtime failed: {error:?}"));
         eprintln!("failed to run Torch Overlay: {error}");
         std::process::exit(1);
     }
@@ -390,38 +726,4 @@ fn should_pass_through_overlay(
     });
 
     !over_clickable
-}
-
-fn install_diagnostics() {
-    let previous_hook = std::panic::take_hook();
-
-    std::panic::set_hook(Box::new(move |panic_info| {
-        write_diagnostic(format!("panic: {panic_info}"));
-        previous_hook(panic_info);
-    }));
-}
-
-fn write_diagnostic(message: impl AsRef<str>) {
-    let Some(path) = diagnostic_log_path() else {
-        return;
-    };
-
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-
-    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
-        let _ = writeln!(
-            file,
-            "[{}] {}",
-            chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-            message.as_ref()
-        );
-    }
-}
-
-fn diagnostic_log_path() -> Option<PathBuf> {
-    std::env::var_os("LOCALAPPDATA")
-        .map(PathBuf::from)
-        .map(|path| path.join("Torch Overlay Diagnostics").join("startup.log"))
 }

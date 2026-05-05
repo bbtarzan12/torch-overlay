@@ -1,5 +1,5 @@
 export type ChartMode = "rate" | "cumulative";
-export type DetailTab = "runs" | "items";
+export type DetailTab = "runs" | "items" | "debug";
 export type ItemFilter = "all" | "priced" | "unpriced" | "ignored";
 export type UpdateState =
   | "idle"
@@ -66,6 +66,21 @@ export interface TrackerSnapshot {
   knownPriceCount: number;
   recentLoot: LootSummary[];
   items: ItemValuationRow[];
+  debug: TrackerDebugInfo;
+}
+
+export interface TrackerDebugInfo {
+  gameLogPath: string;
+  gameLogExists: boolean;
+  gameLogSize?: number | null;
+  readOffset: number;
+  lineNumber: number;
+  idlePollCount: number;
+  currentProto?: string | null;
+  activeRun: boolean;
+  currentMap?: string | null;
+  lastError?: string | null;
+  lastActivity: string;
 }
 
 export interface UpdateInfo {

@@ -2,12 +2,15 @@
   import { onMount, tick } from "svelte";
   import { buildChartSeries } from "./lib/chart";
   import { formatDuration, formatNumber, formatRate } from "./lib/format";
-  import { sampleCurrentRun, sampleItems, sampleRuns } from "./lib/sample-data";
+  import { sampleCurrentRun, sampleDebugInfo, sampleItems, sampleRuns } from "./lib/sample-data";
   import {
     installStartupUpdate,
     loadTrackerSnapshot,
+    openDiagnosticsFolder,
+    openGameLogFolder,
     resetTrackerSession,
     setClickableRects,
+    setGameLogPath,
     setItemIgnored,
     setManualItemPrice,
     setOverlayOpacity,
@@ -21,6 +24,7 @@
     ItemFilter,
     ItemValuationRow,
     RunSummary,
+    TrackerDebugInfo,
     UpdateInfo
   } from "./lib/types";
 
@@ -35,6 +39,9 @@
   let itemFilter: ItemFilter = "all";
   let manualPrices: Record<number, string> = {};
   let itemActionError = "";
+  let debugActionError = "";
+  let debugInfo: TrackerDebugInfo = sampleDebugInfo;
+  let gameLogPathInput = sampleDebugInfo.gameLogPath;
   let updateInfo: UpdateInfo = { state: "idle" };
   let hasSnapshot = false;
   let snapshotUnpricedItemCount = 0;
@@ -161,6 +168,8 @@
     currentRun = snapshot.currentRun;
     runs = snapshot.runs;
     items = snapshot.items;
+    debugInfo = snapshot.debug;
+    gameLogPathInput = snapshot.debug.gameLogPath;
     hasSnapshot = true;
     snapshotUnpricedItemCount = snapshot.unpricedItemCount;
   }
@@ -266,6 +275,58 @@
             }
           : entry
       );
+    }
+
+    await syncOverlayLayout();
+  }
+
+  async function openDebugFolder() {
+    debugActionError = "";
+
+    try {
+      await openDiagnosticsFolder();
+    } catch (error) {
+      debugActionError = `디버그 폴더 열기 실패: ${formatError(error)}`;
+    }
+
+    await syncOverlayLayout();
+  }
+
+  async function openCurrentGameLogFolder() {
+    debugActionError = "";
+
+    try {
+      await openGameLogFolder();
+    } catch (error) {
+      debugActionError = `게임 로그 폴더 열기 실패: ${formatError(error)}`;
+    }
+
+    await syncOverlayLayout();
+  }
+
+  function handleGameLogPathInput(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    gameLogPathInput = input.value;
+  }
+
+  async function applyGameLogPath() {
+    const path = gameLogPathInput.trim();
+
+    if (!path) {
+      debugActionError = "게임 로그 경로를 입력해야 합니다.";
+      await syncOverlayLayout();
+      return;
+    }
+
+    debugActionError = "";
+
+    try {
+      const snapshot = await setGameLogPath(path);
+      if (snapshot) {
+        applySnapshot(snapshot);
+      }
+    } catch (error) {
+      debugActionError = `게임 로그 경로 적용 실패: ${formatError(error)}`;
     }
 
     await syncOverlayLayout();
@@ -500,6 +561,13 @@
           아이템 평가
           <span>{items.length}</span>
         </button>
+        <button
+          type="button"
+          aria-pressed={detailTab === "debug"}
+          onclick={() => setDetailTab("debug")}
+        >
+          디버그
+        </button>
       </nav>
 
       {#if detailTab === "runs"}
@@ -574,7 +642,7 @@
             </div>
           </section>
         </div>
-      {:else}
+      {:else if detailTab === "items"}
         <section class="item-panel" aria-label="아이템 평가">
           <div class="item-toolbar">
             <div class="item-filters" aria-label="아이템 필터">
@@ -690,6 +758,67 @@
               </tfoot>
             </table>
           </div>
+        </section>
+      {:else}
+        <section class="debug-panel" aria-label="디버그">
+          <div class="debug-status-grid">
+            <div class="debug-card">
+              <span class="debug-label">게임 로그</span>
+              <strong class:bad={!debugInfo.gameLogExists}>
+                {debugInfo.gameLogExists ? "확인됨" : "없음"}
+              </strong>
+              <small>{debugInfo.gameLogSize == null ? "-" : `${formatNumber(debugInfo.gameLogSize, 0)} bytes`}</small>
+            </div>
+            <div class="debug-card">
+              <span class="debug-label">읽기 상태</span>
+              <strong>{formatNumber(debugInfo.readOffset, 0)}</strong>
+              <small>offset · {formatNumber(debugInfo.lineNumber, 0)} lines</small>
+            </div>
+            <div class="debug-card">
+              <span class="debug-label">현재 런</span>
+              <strong class:bad={!debugInfo.activeRun}>
+                {debugInfo.activeRun ? "활성" : "대기"}
+              </strong>
+              <small>{debugInfo.currentMap ?? "-"}</small>
+            </div>
+            <div class="debug-card">
+              <span class="debug-label">마지막 상태</span>
+              <strong>{debugInfo.idlePollCount > 0 ? "대기" : "처리"}</strong>
+              <small>{debugInfo.lastActivity}</small>
+            </div>
+          </div>
+
+          <div class="debug-path-panel">
+            <label class="debug-path-field">
+              <span>현재 게임 로그 경로</span>
+              <input
+                type="text"
+                value={gameLogPathInput}
+                oninput={handleGameLogPathInput}
+                spellcheck="false"
+                aria-label="게임 로그 경로"
+              />
+            </label>
+            <div class="debug-actions">
+              <button class="debug-open-button" type="button" onclick={applyGameLogPath}>
+                경로 적용
+              </button>
+              <button class="debug-open-button" type="button" onclick={openCurrentGameLogFolder}>
+                게임 로그 폴더
+              </button>
+              <button class="debug-open-button" type="button" onclick={openDebugFolder}>
+                앱 로그 폴더
+              </button>
+            </div>
+          </div>
+
+          {#if debugInfo.lastError}
+            <p class="debug-error">{debugInfo.lastError}</p>
+          {/if}
+
+          {#if debugActionError}
+            <p class="debug-error">{debugActionError}</p>
+          {/if}
         </section>
       {/if}
     </section>
